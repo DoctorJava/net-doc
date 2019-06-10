@@ -1,0 +1,15 @@
+
+plugins {
+    id 'java-library'
+}
+
+repositories {
+    jcenter()
+}
+
+dependencies {
+	compile 'com.fasterxml.jackson.core:jackson-databind:2.2.3'
+	compile 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.3.0'
+	compile 'commons-io:commons-io:+'
+	compile 'commons-cli:commons-cli:1.4'
+}
