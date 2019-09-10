@@ -63,6 +63,7 @@ public class Main {
                 String filePath = props.getProperty(CliOptions.SOURCE_DIR) + props.getProperty(CliOptions.SOURCE_FILE);
  
                 handlePropInput(buf,CliOptions.SUBPACKAGES, false);
+                if (  props.getProperty(CliOptions.SUBPACKAGES) == null ) props.setProperty(CliOptions.SUBPACKAGES, ".");  // If NULL nothhing is included.  Should be all (.) or a subset
 
                 //if ( fileFolderExists("sample") ) abort("Aborting program.  The directory of the source java/class/jar files (sample) does not exist.");
                 //if ( fileFolderExists(filePath) ) abort("Aborting program.  The directory of the source java/class/jar files (" + filePath + ") does not exist.");
@@ -107,7 +108,8 @@ public class Main {
 			Util.runCommand("java -jar lib/jd-cli.jar -od " + tempDir2.getAbsolutePath() + " " + tempDir1.getAbsolutePath());
 			
 			
-			String runJavaDoc = String.format("javadoc -doclet net.jakartaee.tools.netdoc.JeeScannerDoclet -docletpath lib/net-doc-jee-doclet.jar -subpackages %s -sourcepath %s\\WEB-INF\\classes -classpath %s\\WEB-INF\\lib\\*", props.getProperty(CliOptions.SUBPACKAGES), tempDir2.getAbsolutePath(), tempDir2.getAbsolutePath());
+			String runJavaDoc = String.format("javadoc -doclet net.jakartaee.tools.netdoc.JeeScannerDoclet -docletpath lib/net-doc-jee-doclet.jar -subpackages %s -sourcepath %s\\WEB-INF\\classes -classpath \"./*;%s\\WEB-INF\\lib\\*\"", props.getProperty(CliOptions.SUBPACKAGES), tempDir2.getAbsolutePath(), tempDir2.getAbsolutePath());
+			System.out.println("Running: " + runJavaDoc);
 			Util.runCommand(runJavaDoc);
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
