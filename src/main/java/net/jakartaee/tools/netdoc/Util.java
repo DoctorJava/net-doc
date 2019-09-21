@@ -133,6 +133,7 @@ public class Util {
 		for(String s: entries){
 		    File currentFile = new File(dir.getPath(),s);
 		    currentFile.delete();
+			System.out.println("Deleted file: "+currentFile.getAbsolutePath());
 		}		
 	}
 	

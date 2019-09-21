@@ -41,6 +41,7 @@ public class Main {
         //String outputFile = "out.json";
 
 		boolean isVerbose = false;
+		boolean isKeepTemp = false;
 		try (BufferedReader buf = new BufferedReader(new InputStreamReader(System.in))) {
 			if (cl.hasOption(CliOptions.HELP)) {
 				CliOptions.printHelp(SYNTAX);
@@ -56,6 +57,7 @@ public class Main {
 //            }
 
 			if (cl.hasOption(CliOptions.VERBOSE)) isVerbose = true;
+			if (cl.hasOption(CliOptions.KEEP_TEMP)) isKeepTemp = true;
 
             if (cl.hasOption(CliOptions.PROMPT)) {
                 handlePropInput(buf,CliOptions.SOURCE_DIR, true);
@@ -86,7 +88,7 @@ public class Main {
 			OutputStream output = new FileOutputStream(PROPS_FILE);
 			props.store(output,  null);
 
-            run();
+            run(isKeepTemp);
 
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -95,10 +97,13 @@ public class Main {
 
 	}
 	
-	private static void run() throws IOException {
+	private static void run(boolean keepTemp) throws IOException {
 		File tempDir1 = Util.createTempDir(TEMP_DIR1);
 		File tempDir2 = Util.createTempDir(TEMP_DIR2);
         try {
+			//Util.deleteDir(tempDir1);	// Be sure to clean out old temp dirs if they exist
+			//Util.deleteDir(tempDir2);			
+			
 			String filePath = props.getProperty(CliOptions.SOURCE_DIR) + props.getProperty(CliOptions.SOURCE_FILE);
 			
 			Util.unzip(filePath, tempDir1);
@@ -108,15 +113,17 @@ public class Main {
 			Util.runCommand("java -jar lib/jd-cli.jar -od " + tempDir2.getAbsolutePath() + " " + tempDir1.getAbsolutePath());
 			
 			
-			String runJavaDoc = String.format("javadoc -doclet net.jakartaee.tools.netdoc.JeeScannerDoclet -docletpath lib/net-doc-jee-doclet.jar -subpackages %s -sourcepath %s\\WEB-INF\\classes -classpath \"./*;%s\\WEB-INF\\lib\\*\"", props.getProperty(CliOptions.SUBPACKAGES), tempDir2.getAbsolutePath(), tempDir2.getAbsolutePath());
+			String runJavaDoc = String.format("javadoc -doclet net.jakartaee.tools.netdoc.JeeScannerDoclet -docletpath lib/net-doc-jee-doclet.jar -subpackages %s -sourcepath %s\\WEB-INF\\classes -classpath \"./lib/*;%s\\WEB-INF\\lib\\*\"", props.getProperty(CliOptions.SUBPACKAGES), tempDir2.getAbsolutePath(), tempDir2.getAbsolutePath());
 			System.out.println("Running: " + runJavaDoc);
 			Util.runCommand(runJavaDoc);
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-		} finally {			// TODO: This doesn't get execure with javadoc command exits with error.
-			Util.deleteDir(tempDir1);	
-			Util.deleteDir(tempDir2);			
+		} finally {			// TODO: This doesn't get executed with javadoc command exits with error.
+			if ( !keepTemp ) {
+				Util.deleteDir(tempDir1);	
+				Util.deleteDir(tempDir2);							
+			}
 		}
 		
 

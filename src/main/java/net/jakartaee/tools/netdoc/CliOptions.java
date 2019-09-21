@@ -14,6 +14,9 @@ public class CliOptions {
     public static final String SOURCE_DIR = "source-directory";
     public static final String SOURCE_FILE = "source-file";
     public static final String SUBPACKAGES = "subpackages";
+   
+    public static final String KEEP_TEMP = "keep-temp";
+    
     //public static final String OUTPUT = "output";	// TODO (5/7/2019): Don't know how to pass the output location to the Doclet yet.. Use enviroment variable?
     public static final String VERBOSE = "verbose";
     private static final PrintStream OUT = System.out;
@@ -57,6 +60,12 @@ public class CliOptions {
                 .hasArg(false)
                 .longOpt(SUBPACKAGES)
                 .desc("List of packages to be scanned. (Default all '.')")
+                .build();         
+        final Option keeptempOption = Option.builder("k")
+                .required(false)
+                .hasArg(false)
+                .longOpt(KEEP_TEMP)
+                .desc("Keep temporary extracted *.class and *.java files.")
                 .build();    
         final Option verboseOption = Option.builder("v")
                 .required(false)
@@ -71,6 +80,7 @@ public class CliOptions {
         options.addOption(sourceFileOption);
         options.addOption(subpackagesOption);
         //options.addOption(outputOption);
+        options.addOption(keeptempOption);
         options.addOption(verboseOption);
         return options;
     }
