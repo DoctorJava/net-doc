@@ -1,9 +1,11 @@
 package net.jakartaee.tools.netdoc;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -11,9 +13,15 @@ import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.Properties;
 
+import groovy.json.JsonOutput;
+
 import org.apache.commons.cli.CommandLine;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class Main {
+    private static final Logger log = LoggerFactory.getLogger(Main.class);
+
 	private static final String PROPS_FILE = "net-doc.props";
 	private static final String SYNTAX = "java -jar net-doc-jee.jar ";
 	private static final String FINISH_MSG = "Finished.";
@@ -24,11 +32,11 @@ public class Main {
 
 	public static void main(String[] args) {
 		String mainCmd = SYNTAX + String.join(" ", Arrays.asList(args));
-		System.out.println(mainCmd);
+		log.debug(mainCmd);
 
 		try ( InputStream fis = new FileInputStream(PROPS_FILE); ) {
 			props.load(fis);
-			System.out.println("Got prop SOURCE_DIR: " + props.getProperty(CliOptions.SOURCE_DIR));
+			log.debug("Got prop SOURCE_DIR: " + props.getProperty(CliOptions.SOURCE_DIR));
 		} catch (IOException e) {
 			props.setProperty(CliOptions.SOURCE_DIR, ".");
 			props.setProperty(CliOptions.SUBPACKAGES, ".");
@@ -70,7 +78,7 @@ public class Main {
                 //if ( fileFolderExists("sample") ) abort("Aborting program.  The directory of the source java/class/jar files (sample) does not exist.");
                 //if ( fileFolderExists(filePath) ) abort("Aborting program.  The directory of the source java/class/jar files (" + filePath + ") does not exist.");
                 
-                System.out.println("Running: " + SYNTAX + " -s " +   props.getProperty(CliOptions.SOURCE_DIR));
+                log.debug("Running: " + SYNTAX + " -s " +   props.getProperty(CliOptions.SOURCE_DIR));
             } else {
             	if (cl.hasOption(CliOptions.SOURCE_DIR)) {
     				if (!fileFolderExists( cl.getOptionValue(CliOptions.SOURCE_DIR)))
@@ -114,8 +122,18 @@ public class Main {
 			
 			
 			String runJavaDoc = String.format("javadoc -doclet net.jakartaee.tools.netdoc.JeeScannerDoclet -docletpath lib/net-doc-jee-doclet.jar -subpackages %s -sourcepath %s\\WEB-INF\\classes -classpath \"./lib/*;%s\\WEB-INF\\lib\\*\"", props.getProperty(CliOptions.SUBPACKAGES), tempDir2.getAbsolutePath(), tempDir2.getAbsolutePath());
-			System.out.println("Running: " + runJavaDoc);
-			Util.runCommand(runJavaDoc);
+			log.debug("Running: " + runJavaDoc);
+			String gotOutput = Util.runCommand(runJavaDoc);
+			
+			String START_AFTER = "Constructing Javadoc information...";
+			int iJson = gotOutput.indexOf(START_AFTER);
+			System.out.println("Found START_AFTER at: " + iJson);
+			if ( iJson > 0 ) gotOutput = gotOutput.substring(iJson + START_AFTER.length());
+			System.out.println("Got JSON Output: ");
+			System.out.println(gotOutput);
+			System.out.println();
+			outputReports(gotOutput, "NewMain");
+
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -129,6 +147,19 @@ public class Main {
 
 	}
 	
+	private static void outputReports(String json, String info) throws IOException {
+		String OUT_JSON = "D:/dev/tools/NetDoc/net-doc-jee-report_"+info+".json";
+		String OUT_HTML = "D:/dev/tools/NetDoc/net-doc-jee-report_"+info+".html";
+		
+		try(BufferedWriter writer = new BufferedWriter(new FileWriter(OUT_JSON))){
+		    writer.write(JsonOutput.prettyPrint(json)); // do something with the file we've opened
+		}
+			
+		try(BufferedWriter writer = new BufferedWriter(new FileWriter(OUT_HTML))){
+		    writer.write(Util.convertJsToHtml( Util.convertJsonToJs(json) )); // do something with the file we've opened
+		}
+		
+	}
 	private static void abort(String message) {
 		System.err.println(message);
 		CliOptions.printUsage(SYNTAX);
@@ -137,7 +168,7 @@ public class Main {
 	}
 
 	private static void finish() {
-		System.out.println(FINISH_MSG);
+		log.debug(FINISH_MSG);
 		System.exit(0);
 	}
 	
@@ -163,7 +194,7 @@ public class Main {
 //        if (!entry.equals("")) {
 //            //if (!entry.endsWith("/") && !entry.endsWith("\\")) entry = entry + "/";
 //
-//            System.out.println("Got dir2: " + props.getProperty(CliOptions.SOURCE_DIR));
+//            log.debug("Got dir2: " + props.getProperty(CliOptions.SOURCE_DIR));
 //
 //        }
 //        return entry;
