@@ -39,7 +39,7 @@ public class Main {
 			log.debug("Got prop SOURCE_DIR: " + props.getProperty(CliOptions.SOURCE_DIR));
 		} catch (IOException e) {
 			props.setProperty(CliOptions.SOURCE_DIR, ".");
-			props.setProperty(CliOptions.SUBPACKAGES, ".");
+//			props.setProperty(CliOptions.SUBPACKAGES, ".");
 		}
 		
 		
@@ -50,6 +50,7 @@ public class Main {
 
 		boolean isVerbose = false;
 		boolean isKeepTemp = false;
+		boolean isLinux = false;
 		try (BufferedReader buf = new BufferedReader(new InputStreamReader(System.in))) {
 			if (cl.hasOption(CliOptions.HELP)) {
 				CliOptions.printHelp(SYNTAX);
@@ -66,14 +67,20 @@ public class Main {
 
 			if (cl.hasOption(CliOptions.VERBOSE)) isVerbose = true;
 			if (cl.hasOption(CliOptions.KEEP_TEMP)) isKeepTemp = true;
+			if (cl.hasOption(CliOptions.IS_LINUX)) isLinux = true;
 
             if (cl.hasOption(CliOptions.PROMPT)) {
+                handlePropInput(buf,CliOptions.SOURCE_TYPE, false);
                 handlePropInput(buf,CliOptions.SOURCE_DIR, true);
-                handlePropInput(buf,CliOptions.SOURCE_FILE, false);
+                if ( props.getProperty(CliOptions.SOURCE_TYPE).toUpperCase().startsWith("A") ) handlePropInput(buf,CliOptions.SOURCE_FILE, false);
+
+                handlePropInput(buf,CliOptions.CLASSPATH, false);
+                
+               // handlePropInput(buf,CliOptions.IS_LINUX, false);
                 String filePath = props.getProperty(CliOptions.SOURCE_DIR) + props.getProperty(CliOptions.SOURCE_FILE);
  
-                handlePropInput(buf,CliOptions.SUBPACKAGES, false);
-                if (  props.getProperty(CliOptions.SUBPACKAGES) == null ) props.setProperty(CliOptions.SUBPACKAGES, ".");  // If NULL nothhing is included.  Should be all (.) or a subset
+                //handlePropInput(buf,CliOptions.SUBPACKAGES, false);
+                //if (  props.getProperty(CliOptions.SUBPACKAGES) == null ) props.setProperty(CliOptions.SUBPACKAGES, ".");  // If NULL nothhing is included.  Should be all (.) or a subset
 
                 //if ( fileFolderExists("sample") ) abort("Aborting program.  The directory of the source java/class/jar files (sample) does not exist.");
                 //if ( fileFolderExists(filePath) ) abort("Aborting program.  The directory of the source java/class/jar files (" + filePath + ") does not exist.");
@@ -96,7 +103,10 @@ public class Main {
 			OutputStream output = new FileOutputStream(PROPS_FILE);
 			props.store(output,  null);
 
-            run(isKeepTemp);
+			if ( props.getProperty(CliOptions.SOURCE_TYPE).toUpperCase().startsWith("A") ) 
+				runArchive(isLinux, isKeepTemp);
+			else
+				runSource(isLinux, isKeepTemp);
 
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -105,9 +115,47 @@ public class Main {
 
 	}
 	
-	private static void run(boolean keepTemp) throws IOException {
+	private static void runSource(boolean isLinux, boolean keepTemp) throws IOException {
+        try {
+			String filePath = props.getProperty(CliOptions.SOURCE_DIR);
+			String classPath = props.getProperty(CliOptions.CLASSPATH);
+			
+			String runJavaDoc = String.format("javadoc -doclet net.jakartaee.tools.netdoc.JeeScannerDoclet -docletpath lib/net-doc-jee-doclet.jar -subpackages %s -sourcepath %s -classpath \"./lib/*;%s/*\"", ".", filePath, classPath);
+			log.debug("Running: " + runJavaDoc);
+			String gotOutput = Util.runCommand(isLinux, runJavaDoc);
+			
+			String START_AFTER = "Constructing Javadoc information...";
+			int iJson = gotOutput.indexOf(START_AFTER);
+			System.out.println("Found START_AFTER at: " + iJson);
+			if ( iJson > 0 ) {
+				gotOutput = gotOutput.substring(iJson + START_AFTER.length());
+				String TRIM_AFTER ="}]}]}";		// TODO:  This is a hack.  The Javadoc sometimes writes "# Warnings" after the closing json
+				int iTrim = gotOutput.indexOf(TRIM_AFTER);
+				gotOutput = gotOutput.substring(0,iTrim + TRIM_AFTER.length());				
+			}
+			System.out.println("Got JSON Output from SOURCE: ");
+			System.out.println(gotOutput);
+			System.out.println();
+			outputReports(gotOutput, "NewMain");
+
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} 
+		
+
+	}
+	private static void runArchive(boolean isLinux, boolean keepTemp) throws IOException {
 		File tempDir1 = Util.createTempDir(TEMP_DIR1);
 		File tempDir2 = Util.createTempDir(TEMP_DIR2);
+		String t2 = tempDir2.getAbsolutePath().replace("\\","/");		// replace windows backslash because either works with the cmd
+		//String t2 = tempDir2.getAbsolutePath();		
+
+		String sourcepath = t2 + "/WEB-INF/classes*;" + t2 + "/BOOT-INF/classes;";
+
+		String classpath = "./lib/*;" + t2 + "/WEB-INF/lib/*;" + t2 + "/BOOT-INF/lib/*;";
+			   classpath += props.getProperty(CliOptions.CLASSPATH);
+		
         try {
 			//Util.deleteDir(tempDir1);	// Be sure to clean out old temp dirs if they exist
 			//Util.deleteDir(tempDir2);			
@@ -118,18 +166,24 @@ public class Main {
 			//Util.unzip("input/col3.war", tempDir1);
 			
 			//Util.runCommand("dir");
-			Util.runCommand("java -jar lib/jd-cli.jar -od " + tempDir2.getAbsolutePath() + " " + tempDir1.getAbsolutePath());
+			Util.runCommand(isLinux, "java -jar lib/jd-cli.jar -od " + tempDir2.getAbsolutePath() + " " + tempDir1.getAbsolutePath());
 			
 			
-			String runJavaDoc = String.format("javadoc -doclet net.jakartaee.tools.netdoc.JeeScannerDoclet -docletpath lib/net-doc-jee-doclet.jar -subpackages %s -sourcepath %s\\WEB-INF\\classes -classpath \"./lib/*;%s\\WEB-INF\\lib\\*\"", props.getProperty(CliOptions.SUBPACKAGES), tempDir2.getAbsolutePath(), tempDir2.getAbsolutePath());
+			//String runJavaDoc = String.format("javadoc -doclet net.jakartaee.tools.netdoc.JeeScannerDoclet -docletpath lib/net-doc-jee-doclet.jar -subpackages %s -sourcepath %s\\WEB-INF\\classes -classpath \"./lib/*;%s\\WEB-INF\\lib\\*\"", props.getProperty(CliOptions.SUBPACKAGES), tempDir2.getAbsolutePath(), tempDir2.getAbsolutePath());
+			String runJavaDoc = String.format("javadoc -doclet net.jakartaee.tools.netdoc.JeeScannerDoclet -docletpath lib/net-doc-jee-doclet.jar -subpackages %s -sourcepath \"%s\" -classpath \"%s\" ", ".", sourcepath, classpath);
 			log.debug("Running: " + runJavaDoc);
-			String gotOutput = Util.runCommand(runJavaDoc);
+			String gotOutput = Util.runCommand(isLinux, runJavaDoc);
 			
 			String START_AFTER = "Constructing Javadoc information...";
 			int iJson = gotOutput.indexOf(START_AFTER);
 			System.out.println("Found START_AFTER at: " + iJson);
-			if ( iJson > 0 ) gotOutput = gotOutput.substring(iJson + START_AFTER.length());
-			System.out.println("Got JSON Output: ");
+			if ( iJson > 0 ) {
+				gotOutput = gotOutput.substring(iJson + START_AFTER.length());
+				String TRIM_AFTER ="}]}]}";		// TODO:  This is a hack.  The Javadoc sometimes writes "# Warnings" after the closing json
+				int iTrim = gotOutput.indexOf(TRIM_AFTER);
+				gotOutput = gotOutput.substring(0,iTrim + TRIM_AFTER.length());				
+			}
+			System.out.println("Got JSON Output from ARCHIVE: ");
 			System.out.println(gotOutput);
 			System.out.println();
 			outputReports(gotOutput, "NewMain");
@@ -145,11 +199,10 @@ public class Main {
 		}
 		
 
-	}
-	
+	}	
 	private static void outputReports(String json, String info) throws IOException {
-		String OUT_JSON = "D:/dev/tools/NetDoc/net-doc-jee-report_"+info+".json";
-		String OUT_HTML = "D:/dev/tools/NetDoc/net-doc-jee-report_"+info+".html";
+		String OUT_JSON = "out/net-doc-jee-report_"+info+".json";
+		String OUT_HTML = "out/net-doc-jee-report_"+info+".html";
 		
 		try(BufferedWriter writer = new BufferedWriter(new FileWriter(OUT_JSON))){
 		    writer.write(JsonOutput.prettyPrint(json)); // do something with the file we've opened

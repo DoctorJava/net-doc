@@ -137,16 +137,16 @@ public class Util {
 		}		
 	}
 	
-	public static String runCommand(String cmd) {
+	public static String runCommand(boolean isLinux, String cmd) {
 		StringBuffer output = new StringBuffer();
 		System.out.println("Running command: " + cmd);
         ProcessBuilder processBuilder = new ProcessBuilder();
         
-    	// Linux
-    	//processBuilder.command("bash", "-c", runCommand);
-
-    	// Windows
-        processBuilder.command("cmd.exe", "/c", cmd);
+        System.out.println("Running LINUX command syntax: "+ isLinux);
+//        if ( isLinux )
+//        	processBuilder.command("bash", "-c", cmd);
+//        else
+        	processBuilder.command("cmd.exe", "/c", cmd);			// Windows
 
         try {
 
