@@ -25,7 +25,7 @@ public class Main {
 	private static final String PROPS_FILE = "net-doc.props";
 	private static final String SYNTAX = "java -jar net-doc-jee.jar ";
 	private static final String FINISH_MSG = "Finished.";
-	private static final String TEMP_DIR1 = "netdoc1";
+	//private static final String TEMP_DIR1 = "netdoc1";
 	private static final String TEMP_DIR2 = "netdoc2";
 	
 	private static Properties props = new Properties();		
