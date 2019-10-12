@@ -53,14 +53,17 @@ public class Util {
 //	}
 	
     private static final int BUFFER_SIZE = 4096;
-    /**
-     * Extracts a zip file specified by the zipFilePath to a directory specified by
-     * destDirectory (will be created if does not exists)
-     * @param zipFilePath
-     * @param destDirectory
-     * @throws IOException
-     */
+
     
+    public static void unjar(String jarFilePath, File tempDir) throws IOException {
+    	String destDirectory = tempDir.getAbsolutePath();
+        File destDir = new File(destDirectory);
+        if (!destDir.exists()) {
+            destDir.mkdir();
+        }
+        System.out.println("Unjaring file: " + jarFilePath + " to temp directory: " + tempDir);
+
+    }
     
     //public void unzip(String zipFilePath, String destDirectory) throws IOException {
     public static void unzip(String zipFilePath, File tempDir) throws IOException {

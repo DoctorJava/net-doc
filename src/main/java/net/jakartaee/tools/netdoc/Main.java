@@ -146,12 +146,12 @@ public class Main {
 
 	}
 	private static void runArchive(boolean isLinux, boolean keepTemp) throws IOException {
-		File tempDir1 = Util.createTempDir(TEMP_DIR1);
+		//File tempDir1 = Util.createTempDir(TEMP_DIR1);
 		File tempDir2 = Util.createTempDir(TEMP_DIR2);
 		String t2 = tempDir2.getAbsolutePath().replace("\\","/");		// replace windows backslash because either works with the cmd
 		//String t2 = tempDir2.getAbsolutePath();		
 
-		String sourcepath = t2 + "/WEB-INF/classes*;" + t2 + "/BOOT-INF/classes;";
+		String sourcepath = t2 + "/WEB-INF/classes;" + t2 + "/BOOT-INF/classes*;";
 
 		String classpath = "./lib/*;" + t2 + "/WEB-INF/lib/*;" + t2 + "/BOOT-INF/lib/*;";
 			   classpath += props.getProperty(CliOptions.CLASSPATH);
@@ -162,12 +162,16 @@ public class Main {
 			
 			String filePath = props.getProperty(CliOptions.SOURCE_DIR) + props.getProperty(CliOptions.SOURCE_FILE);
 			
-			Util.unzip(filePath, tempDir1);
+			//Util.unzip(filePath, tempDir1);
 			//Util.unzip("input/col3.war", tempDir1);
 			
 			//Util.runCommand("dir");
-			Util.runCommand(isLinux, "java -jar lib/jd-cli.jar -od " + tempDir2.getAbsolutePath() + " " + tempDir1.getAbsolutePath());
+			//Util.runCommand(isLinux, "java -jar lib/jd-cli.jar -od " + tempDir2.getAbsolutePath() + " " + tempDir1.getAbsolutePath());
 			
+			String runDecompile = "java -jar lib/jd-cli.jar -od " + tempDir2.getAbsolutePath() + " " + filePath;
+			log.debug("Running: " + runDecompile);
+			Util.runCommand(isLinux, runDecompile);
+
 			
 			//String runJavaDoc = String.format("javadoc -doclet net.jakartaee.tools.netdoc.JeeScannerDoclet -docletpath lib/net-doc-jee-doclet.jar -subpackages %s -sourcepath %s\\WEB-INF\\classes -classpath \"./lib/*;%s\\WEB-INF\\lib\\*\"", props.getProperty(CliOptions.SUBPACKAGES), tempDir2.getAbsolutePath(), tempDir2.getAbsolutePath());
 			String runJavaDoc = String.format("javadoc -doclet net.jakartaee.tools.netdoc.JeeScannerDoclet -docletpath lib/net-doc-jee-doclet.jar -subpackages %s -sourcepath \"%s\" -classpath \"%s\" ", ".", sourcepath, classpath);
@@ -193,7 +197,7 @@ public class Main {
 			e.printStackTrace();
 		} finally {			// TODO: This doesn't get executed with javadoc command exits with error.
 			if ( !keepTemp ) {
-				Util.deleteDir(tempDir1);	
+				//Util.deleteDir(tempDir1);	
 				Util.deleteDir(tempDir2);							
 			}
 		}
