@@ -20,7 +20,6 @@ public class CliOptions {
     public static final String KEEP_TEMP = "keep-temp";
     public static final String IS_LINUX = "is-linux";
     
-    //public static final String OUTPUT = "output";	// TODO (5/7/2019): Don't know how to pass the output location to the Doclet yet.. Use enviroment variable?
     public static final String VERBOSE = "verbose";
     private static final PrintStream OUT = System.out;
     
