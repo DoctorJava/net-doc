@@ -56,14 +56,6 @@ public class Main {
 				CliOptions.printHelp(SYNTAX);
 				finish();
 			} 
-//			else if (cl.hasOption(CliOptions.CREATE)) {
-//                System.out.print("Enter your PRODUCT watermark: ");
-//                String eSomeValue = buf.readLine();
-//                if (eSomeValue.equals("")) {
-//                    abort("Aborting program.  A valid entry is required.");
-//                }
-//                finish();
-//            }
 
 			if (cl.hasOption(CliOptions.VERBOSE)) isVerbose = true;
 			if (cl.hasOption(CliOptions.KEEP_TEMP)) isKeepTemp = true;
@@ -72,15 +64,31 @@ public class Main {
             if (cl.hasOption(CliOptions.PROMPT)) {
                 handlePropInput(buf,CliOptions.SOURCE_TYPE, false);
                 handlePropInput(buf,CliOptions.SOURCE_DIR, true);
-                if ( props.getProperty(CliOptions.SOURCE_TYPE).toUpperCase().startsWith("A") ) handlePropInput(buf,CliOptions.SOURCE_FILE, false);
+                if ( props.getProperty(CliOptions.SOURCE_TYPE).toUpperCase().startsWith("A") ) {
+                	handlePropInput(buf,CliOptions.SOURCE_FILE, false);
+                	String appName = props.getProperty(CliOptions.SOURCE_FILE);
+                	int lastDot = appName.lastIndexOf(".");
+                	if ( lastDot > 0 ) appName = appName.substring(0, lastDot);
+                	props.setProperty(CliOptions.APP_NAME, appName );
+                } else {
+                	String appName = props.getProperty(CliOptions.SOURCE_DIR);
+                	int lastSlash = appName.lastIndexOf("/");			// TODO: Handle Windows backslash too?
+                   	if ( lastSlash == appName.length() - 1 ) appName = appName.substring(0,lastSlash);	// Trim last slash 
+                   	lastSlash = appName.lastIndexOf("/");
+                	if ( lastSlash > 0 ) appName = appName.substring(lastSlash+1);
+                	props.setProperty(CliOptions.APP_NAME, appName );              	
+                }
+
+                handlePropInput(buf,CliOptions.APP_NAME, false);
 
                 handlePropInput(buf,CliOptions.CLASSPATH, false);
                 
                // handlePropInput(buf,CliOptions.IS_LINUX, false);
                 String filePath = props.getProperty(CliOptions.SOURCE_DIR) + props.getProperty(CliOptions.SOURCE_FILE);
  
-                //handlePropInput(buf,CliOptions.SUBPACKAGES, false);
-                //if (  props.getProperty(CliOptions.SUBPACKAGES) == null ) props.setProperty(CliOptions.SUBPACKAGES, ".");  // If NULL nothhing is included.  Should be all (.) or a subset
+                handlePropInput(buf,CliOptions.SUBPACKAGES, false);
+                if (  props.getProperty(CliOptions.SUBPACKAGES) == null || props.getProperty(CliOptions.SUBPACKAGES).length() <=0 ) 
+                	props.setProperty(CliOptions.SUBPACKAGES, "."); 			// Include ALL Subpackages
 
                 //if ( fileFolderExists("sample") ) abort("Aborting program.  The directory of the source java/class/jar files (sample) does not exist.");
                 //if ( fileFolderExists(filePath) ) abort("Aborting program.  The directory of the source java/class/jar files (" + filePath + ") does not exist.");
@@ -117,10 +125,12 @@ public class Main {
 	
 	private static void runSource(boolean isLinux, boolean keepTemp) throws IOException {
         try {
-			String filePath = props.getProperty(CliOptions.SOURCE_DIR);
+			String sourceDir = props.getProperty(CliOptions.SOURCE_DIR);
 			String classPath = props.getProperty(CliOptions.CLASSPATH);
+			String subPackages = props.getProperty(CliOptions.SUBPACKAGES);
+			// if ( subPackages == null || subPackages.length() <=0 ) subPackages = ".";  This check is done in the Main method
 			
-			String runJavaDoc = String.format("javadoc -doclet net.jakartaee.tools.netdoc.JeeScannerDoclet -docletpath lib/net-doc-jee-doclet.jar -subpackages %s -sourcepath %s -classpath \"./lib/*;%s/*\"", ".", filePath, classPath);
+			String runJavaDoc = String.format("javadoc -doclet net.jakartaee.tools.netdoc.JeeScannerDoclet -docletpath lib/net-doc-jee-doclet.jar -subpackages %s -sourcepath %s -classpath \"./lib/*;%s/*\"", subPackages, sourceDir, classPath);
 			log.debug("Running: " + runJavaDoc);
 			String gotOutput = Util.runCommand(isLinux, runJavaDoc);
 			
@@ -136,7 +146,7 @@ public class Main {
 			System.out.println("Got JSON Output from SOURCE: ");
 			System.out.println(gotOutput);
 			System.out.println();
-			outputReports(gotOutput, "NewMain");
+			outputReports(gotOutput, props.getProperty(CliOptions.APP_NAME));
 
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
@@ -151,30 +161,35 @@ public class Main {
 		String t2 = tempDir2.getAbsolutePath().replace("\\","/");		// replace windows backslash because either works with the cmd
 		//String t2 = tempDir2.getAbsolutePath();		
 
-		String sourcepath = t2 + "/WEB-INF/classes;" + t2 + "/BOOT-INF/classes*;";
+		//String sourcepath = t2 + "/WEB-INF/classes;" + t2 + "/BOOT-INF/classes*;";
+		String decompiledPath = t2 + "/decompiled";
 
 		String classpath = "./lib/*;" + t2 + "/WEB-INF/lib/*;" + t2 + "/BOOT-INF/lib/*;";
 			   classpath += props.getProperty(CliOptions.CLASSPATH);
-		
+
+		String subPackages = props.getProperty(CliOptions.SUBPACKAGES);
+
+				
         try {
 			//Util.deleteDir(tempDir1);	// Be sure to clean out old temp dirs if they exist
 			//Util.deleteDir(tempDir2);			
 			
 			String filePath = props.getProperty(CliOptions.SOURCE_DIR) + props.getProperty(CliOptions.SOURCE_FILE);
 			
-			//Util.unzip(filePath, tempDir1);
+			Util.unzip(filePath, tempDir2);
 			//Util.unzip("input/col3.war", tempDir1);
 			
 			//Util.runCommand("dir");
 			//Util.runCommand(isLinux, "java -jar lib/jd-cli.jar -od " + tempDir2.getAbsolutePath() + " " + tempDir1.getAbsolutePath());
 			
-			String runDecompile = "java -jar lib/jd-cli.jar -od " + tempDir2.getAbsolutePath() + " " + filePath;
+			//String runDecompileJD = "java -jar lib/jd-cli.jar -od " + tempDir2.getAbsolutePath() + " " + filePath;
+			String runDecompile = "java -jar lib/cfr-0.146.jar -cp " + filePath + " --outputdir " + decompiledPath;
 			log.debug("Running: " + runDecompile);
 			Util.runCommand(isLinux, runDecompile);
 
 			
 			//String runJavaDoc = String.format("javadoc -doclet net.jakartaee.tools.netdoc.JeeScannerDoclet -docletpath lib/net-doc-jee-doclet.jar -subpackages %s -sourcepath %s\\WEB-INF\\classes -classpath \"./lib/*;%s\\WEB-INF\\lib\\*\"", props.getProperty(CliOptions.SUBPACKAGES), tempDir2.getAbsolutePath(), tempDir2.getAbsolutePath());
-			String runJavaDoc = String.format("javadoc -doclet net.jakartaee.tools.netdoc.JeeScannerDoclet -docletpath lib/net-doc-jee-doclet.jar -subpackages %s -sourcepath \"%s\" -classpath \"%s\" ", ".", sourcepath, classpath);
+			String runJavaDoc = String.format("javadoc -doclet net.jakartaee.tools.netdoc.JeeScannerDoclet -docletpath lib/net-doc-jee-doclet.jar -subpackages %s -sourcepath \"%s\" -classpath \"%s\" ", subPackages, decompiledPath, classpath);
 			log.debug("Running: " + runJavaDoc);
 			String gotOutput = Util.runCommand(isLinux, runJavaDoc);
 			
@@ -190,7 +205,7 @@ public class Main {
 			System.out.println("Got JSON Output from ARCHIVE: ");
 			System.out.println(gotOutput);
 			System.out.println();
-			outputReports(gotOutput, "NewMain");
+			outputReports(gotOutput, props.getProperty(CliOptions.APP_NAME));
 
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
@@ -263,7 +278,8 @@ public class Main {
 //            if (!entry.endsWith("/") && !entry.endsWith("\\")) entry = entry + "/";
 //            if (!fileFolderExists(entry))
 //                abort("Aborting program.  The output directory (" + entry + ") does not exist.");
-//        }
+
+    //        }
 //        return entry;
 //    }
 }

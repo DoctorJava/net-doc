@@ -14,8 +14,9 @@ public class CliOptions {
     public static final String SOURCE_TYPE = "source-type";
     public static final String SOURCE_DIR = "source-directory";
     public static final String SOURCE_FILE = "source-file";
+    public static final String APP_NAME = "app-name";
     public static final String CLASSPATH = "classpath";
-//    public static final String SUBPACKAGES = "subpackages";
+    public static final String SUBPACKAGES = "subpackages";
    
     public static final String KEEP_TEMP = "keep-temp";
     public static final String IS_LINUX = "is-linux";
@@ -62,19 +63,26 @@ public class CliOptions {
                 .hasArg()
                 .longOpt(SOURCE_FILE)
                 .desc("Required: Name of the source jar/war file to be scanned.")
-                .build();        
+                .build(); 
+        final Option appNameOption = Option.builder("n")
+                .required(false)
+                .hasArg()
+                .longOpt(APP_NAME)
+                .desc("Required: Application Name that is appended to the HTML/JSON report names.")
+                .build();         
+
 //        final Option outputOption = Option.builder("o")
 //                .required(false)
 //                .hasArg()
 //                .longOpt(OUTPUT)
 //                .desc("Path to out.json file.")
 //                .build();
-//        final Option subpackagesOption = Option.builder("f")
-//                .required(false)
-//                .hasArg(false)
-//                .longOpt(SUBPACKAGES)
-//                .desc("List of packages to be scanned. (Default all '.')")
-//                .build();         
+        final Option subpackagesOption = Option.builder("s")
+                .required(false)
+                .hasArg(false)
+                .longOpt(SUBPACKAGES)
+                .desc("List of packages to be scanned. (Default all '.')")
+                .build();         
         final Option keeptempOption = Option.builder("k")
                 .required(false)
                 .hasArg(false)
@@ -99,8 +107,9 @@ public class CliOptions {
         options.addOption(sourceTypeOption);
         options.addOption(sourceDirOption);
         options.addOption(sourceFileOption);
+        options.addOption(appNameOption);     
         options.addOption(classpathOption);
-//        options.addOption(subpackagesOption);
+        options.addOption(subpackagesOption);
         //options.addOption(outputOption);
         options.addOption(keeptempOption);
         options.addOption(isLinuxOption);
