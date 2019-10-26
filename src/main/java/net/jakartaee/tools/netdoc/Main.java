@@ -12,6 +12,8 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.Properties;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import groovy.json.JsonOutput;
 
@@ -25,12 +27,45 @@ public class Main {
 	private static final String PROPS_FILE = "net-doc.props";
 	private static final String SYNTAX = "java -jar net-doc-jee.jar ";
 	private static final String FINISH_MSG = "Finished.";
-	//private static final String TEMP_DIR1 = "netdoc1";
+	private static final String TEMP_DIR = "netdoc";
+	private static final String TEMP_DIR1 = "netdoc1";
 	private static final String TEMP_DIR2 = "netdoc2";
 	
 	private static Properties props = new Properties();		
+	
+	private enum SOURCE_TYPE { A, C, S }
 
-	public static void main(String[] args) {
+//	  private static void zipDir(String zipFileName, String dir) throws Exception {
+//		    File dirObj = new File(dir);
+//		    ZipOutputStream out = new ZipOutputStream(new FileOutputStream(zipFileName));
+//		    System.out.println("Creating : " + zipFileName);
+//		    addDir(dirObj, out);
+//		    out.close();
+//		  }
+//
+//		  static void addDir(File dirObj, ZipOutputStream out) throws IOException {
+//		    File[] files = dirObj.listFiles();
+//		    byte[] tmpBuf = new byte[1024];
+//
+//		    for (int i = 0; i < files.length; i++) {
+//		      if (files[i].isDirectory()) {
+//		        addDir(files[i], out);
+//		        continue;
+//		      }
+//		      FileInputStream in = new FileInputStream(files[i].getAbsolutePath());
+//		      System.out.println(" Adding: " + files[i].getAbsolutePath());
+//		      out.putNextEntry(new ZipEntry(files[i].getAbsolutePath()));
+//		      int len;
+//		      while ((len = in.read(tmpBuf)) > 0) {
+//		        out.write(tmpBuf, 0, len);
+//		      }
+//		      out.closeEntry();
+//		      in.close();
+//		    }
+//		  }
+		  
+	public static void main(String[] args) throws Exception {
+		
 		String mainCmd = SYNTAX + String.join(" ", Arrays.asList(args));
 		log.debug(mainCmd);
 
@@ -38,8 +73,11 @@ public class Main {
 			props.load(fis);
 			log.debug("Got prop SOURCE_DIR: " + props.getProperty(CliOptions.SOURCE_DIR));
 		} catch (IOException e) {
+			props.setProperty(CliOptions.SOURCE_TYPE, "A");
 			props.setProperty(CliOptions.SOURCE_DIR, ".");
-//			props.setProperty(CliOptions.SUBPACKAGES, ".");
+			props.setProperty(CliOptions.SUBPACKAGES, ".");
+			props.setProperty(CliOptions.CFR_JAR, "cfr-0.147.jar");
+			
 		}
 		
 		
@@ -60,6 +98,8 @@ public class Main {
 			if (cl.hasOption(CliOptions.VERBOSE)) isVerbose = true;
 			if (cl.hasOption(CliOptions.KEEP_TEMP)) isKeepTemp = true;
 			if (cl.hasOption(CliOptions.IS_LINUX)) isLinux = true;
+			if (cl.getOptionValue(CliOptions.CFR_JAR) != null )  props.setProperty(CliOptions.CFR_JAR, cl.getOptionValue(CliOptions.CFR_JAR));
+			
 
             if (cl.hasOption(CliOptions.PROMPT)) {
                 handlePropInput(buf,CliOptions.SOURCE_TYPE, false);
@@ -95,8 +135,8 @@ public class Main {
                 
                 log.debug("Running: " + SYNTAX + " -s " +   props.getProperty(CliOptions.SOURCE_DIR));
             } else {
-            	if (cl.hasOption(CliOptions.SOURCE_DIR)) {
-    				if (!fileFolderExists( cl.getOptionValue(CliOptions.SOURCE_DIR)))
+            	if (props.getProperty(CliOptions.SOURCE_DIR) != null) {
+    				if (!fileFolderExists( props.getProperty(CliOptions.SOURCE_DIR)))
     					abort("Aborting program.  The source directory (" +  props.getProperty(CliOptions.SOURCE_DIR) + ") does not exist.");
     			} else {
     				abort("Aborting program.  The root source directory (-s) option is required.");
@@ -111,15 +151,95 @@ public class Main {
 			OutputStream output = new FileOutputStream(PROPS_FILE);
 			props.store(output,  null);
 
-			if ( props.getProperty(CliOptions.SOURCE_TYPE).toUpperCase().startsWith("A") ) 
-				runArchive(isLinux, isKeepTemp);
-			else
-				runSource(isLinux, isKeepTemp);
-
+//	        switch( props.getProperty(CliOptions.SOURCE_TYPE).toUpperCase() ) 
+//	        { 
+//	            case "A": runArchive(isLinux, isKeepTemp); break; 
+//	            case "C": runClasses(isLinux, isKeepTemp); break; 
+//	            case "S": runSource(isLinux, isKeepTemp); break; 
+//	            default: 
+//    				abort("Unknown 'source-type'.  Valid values are A) web/jar archive, C) classes, or S) source files.");
+//	        } 
+			SOURCE_TYPE sourceType = Enum.valueOf(SOURCE_TYPE.class, props.getProperty(CliOptions.SOURCE_TYPE).toUpperCase());
+			run(sourceType, isLinux, isKeepTemp);
+			
 		} catch (Exception e) {
 			e.printStackTrace();
 			//return;
 		} 
+
+	}
+	
+	private static void run(SOURCE_TYPE sourceType, boolean isLinux, boolean keepTemp) throws IOException {
+		File tempDir = Util.createTempDir(TEMP_DIR);
+		String tempPath = tempDir.getAbsolutePath().replace("\\","/");		// replace windows backslash because either works with the cmd
+
+		String cfrJar = props.getProperty(CliOptions.CFR_JAR);
+
+		String decompiledPath = tempPath + "/decompiled";
+
+		String classPath = Util.withSlashStar(props.getProperty(CliOptions.CLASSPATH));
+		
+		String subPackages = props.getProperty(CliOptions.SUBPACKAGES);
+		String sourceDir = props.getProperty(CliOptions.SOURCE_DIR);			
+
+				
+        try {
+        	switch( sourceType )
+			{
+				case A:
+					classPath += ";lib/*;" + tempPath + "/WEB-INF/lib/*;" + tempPath + "/BOOT-INF/lib/*;";
+					String filePath = sourceDir + props.getProperty(CliOptions.SOURCE_FILE);
+					Util.unzip(filePath, tempDir);
+					
+					String runDecompileA = String.format("java -jar lib/%s -cp %s --outputdir %s", cfrJar, filePath, decompiledPath);
+					log.debug("Running: " + runDecompileA);
+					Util.runCommand(isLinux, runDecompileA);
+					break;
+				case C:
+					classPath += ";lib/*;" + tempPath + "/WEB-INF/lib/*;" + tempPath + "/BOOT-INF/lib/*;";
+					String zipPath = tempPath + "/" + props.getProperty(CliOptions.APP_NAME)+".jar";
+		        	String runJar = String.format("jar cvf %s %s", zipPath, sourceDir);
+					log.debug("Running: " + runJar);
+					Util.runCommand(isLinux, runJar);
+	
+					String runDecompileC = String.format("java -jar lib/%s -cp %s --outputdir %s", cfrJar, zipPath, decompiledPath);
+					log.debug("Running: " + runDecompileC);
+					Util.runCommand(isLinux, runDecompileC);
+
+					break;
+				case S:
+					classPath += ";lib/*;";
+					decompiledPath = props.getProperty(CliOptions.SOURCE_DIR);
+					break;
+			}
+			
+			String runJavaDoc = String.format("javadoc -doclet net.jakartaee.tools.netdoc.JeeScannerDoclet -docletpath lib/net-doc-jee-doclet.jar -subpackages %s -sourcepath \"%s\" -classpath \"%s\" ", subPackages, decompiledPath, classPath);
+			log.debug("Running: " + runJavaDoc);
+			String gotOutput = Util.runCommand(isLinux, runJavaDoc);
+			
+			String START_AFTER = "Constructing Javadoc information...";
+			int iJson = gotOutput.indexOf(START_AFTER);
+			System.out.println("Found START_AFTER at: " + iJson);
+			if ( iJson > 0 ) {
+				gotOutput = gotOutput.substring(iJson + START_AFTER.length());
+				String TRIM_AFTER ="}]}]}";		// TODO:  This is a hack.  The Javadoc sometimes writes "# Warnings" after the closing json
+				int iTrim = gotOutput.indexOf(TRIM_AFTER);
+				gotOutput = gotOutput.substring(0,iTrim + TRIM_AFTER.length());				
+			}
+			System.out.println("Got JSON Output from ARCHIVE: ");
+			System.out.println(gotOutput);
+			System.out.println();
+			outputReports(gotOutput, props.getProperty(CliOptions.APP_NAME));
+
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} finally {			// TODO: This doesn't get executed with javadoc command exits with error.
+			if ( !keepTemp ) {
+				Util.deleteDir(tempDir);							
+			}
+		}
+		
 
 	}
 	
@@ -155,6 +275,76 @@ public class Main {
 		
 
 	}
+	
+	private static void runClasses(boolean isLinux, boolean keepTemp) throws IOException {
+		
+		//
+		// TODO: Maybe it is easiest to jar up the folder and the call CFR, rather than figuring out how to call CFR recursively on a folder
+		//
+		
+		File tempDir1 = Util.createTempDir(TEMP_DIR1);
+		//String t1 = tempDir1.getAbsolutePath().replace("\\","/");		// replace windows backslash because either works with the cmd
+		String t1 = tempDir1.getAbsolutePath();		//  windows backslash is necessary for the zipDir
+		String zipPath = t1 + "\\" + props.getProperty(CliOptions.APP_NAME);
+		String decompiledPath = t1 + "/decompiled";
+
+		String cfrJar = props.getProperty(CliOptions.CFR_JAR);
+		String sourceDir = props.getProperty(CliOptions.SOURCE_DIR);
+		String classpath = props.getProperty(CliOptions.CLASSPATH);
+
+		String subPackages = props.getProperty(CliOptions.SUBPACKAGES);
+
+				
+        try {
+			//Util.deleteDir(tempDir1);	// Be sure to clean out old temp dirs if they exist
+			//Util.deleteDir(tempDir2);		
+        	
+			//Util.zipDir(zipPath, sourceDir);  THis didn't work
+        	
+        	String runJar = String.format("jar cvf %s.jar %s", zipPath, sourceDir);
+			log.debug("Running: " + runJar);
+			Util.runCommand(isLinux, runJar);
+			
+			//String filePath = props.getProperty(CliOptions.SOURCE_DIR) + props.getProperty(CliOptions.SOURCE_FILE);
+			//String runDecompile = "java -jar lib/cfr-0.146.jar -cp " + zipPath + " --outputdir " + decompiledPath;
+			String runDecompile = String.format("java -jar lib/%s -cp %s --outputdir %s", cfrJar, zipPath, decompiledPath);
+			log.debug("Running: " + runDecompile);
+			Util.runCommand(isLinux, runDecompile);
+
+			
+			//String runJavaDoc = String.format("javadoc -doclet net.jakartaee.tools.netdoc.JeeScannerDoclet -docletpath lib/net-doc-jee-doclet.jar -subpackages %s -sourcepath %s\\WEB-INF\\classes -classpath \"./lib/*;%s\\WEB-INF\\lib\\*\"", props.getProperty(CliOptions.SUBPACKAGES), tempDir2.getAbsolutePath(), tempDir2.getAbsolutePath());
+			String runJavaDoc = String.format("javadoc -doclet net.jakartaee.tools.netdoc.JeeScannerDoclet -docletpath lib/net-doc-jee-doclet.jar -subpackages %s -sourcepath \"%s\" -classpath \"%s\" ", subPackages, decompiledPath, classpath);
+			log.debug("Running: " + runJavaDoc);
+			String gotOutput = Util.runCommand(isLinux, runJavaDoc);
+			
+			String START_AFTER = "Constructing Javadoc information...";
+			int iJson = gotOutput.indexOf(START_AFTER);
+			System.out.println("Found START_AFTER at: " + iJson);
+			if ( iJson > 0 ) {
+				gotOutput = gotOutput.substring(iJson + START_AFTER.length());
+				String TRIM_AFTER ="}]}]}";		// TODO:  This is a hack.  The Javadoc sometimes writes "# Warnings" after the closing json
+				int iTrim = gotOutput.indexOf(TRIM_AFTER);
+				gotOutput = gotOutput.substring(0,iTrim + TRIM_AFTER.length());				
+			}
+			System.out.println("Got JSON Output from ARCHIVE: ");
+			System.out.println(gotOutput);
+			System.out.println();
+			outputReports(gotOutput, props.getProperty(CliOptions.APP_NAME));
+
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} finally {			// TODO: This doesn't get executed with javadoc command exits with error.
+			if ( !keepTemp ) {
+				//Util.deleteDir(tempDir1);	
+				Util.deleteDir(tempDir1);							
+			}
+		}
+		
+
+	}	
+
+	
 	private static void runArchive(boolean isLinux, boolean keepTemp) throws IOException {
 		//File tempDir1 = Util.createTempDir(TEMP_DIR1);
 		File tempDir2 = Util.createTempDir(TEMP_DIR2);
@@ -162,6 +352,7 @@ public class Main {
 		//String t2 = tempDir2.getAbsolutePath();		
 
 		//String sourcepath = t2 + "/WEB-INF/classes;" + t2 + "/BOOT-INF/classes*;";
+		String cfrJar = props.getProperty(CliOptions.CFR_JAR);
 		String decompiledPath = t2 + "/decompiled";
 
 		String classpath = "./lib/*;" + t2 + "/WEB-INF/lib/*;" + t2 + "/BOOT-INF/lib/*;";
@@ -176,14 +367,13 @@ public class Main {
 			
 			String filePath = props.getProperty(CliOptions.SOURCE_DIR) + props.getProperty(CliOptions.SOURCE_FILE);
 			
+			//String runUnjar = String.format("jar xvf %s -C %s",filePath, tempDir2);
+			//log.debug("Running: " + runUnjar);
+			//Util.runCommand(isLinux, runUnjar);
+			
 			Util.unzip(filePath, tempDir2);
-			//Util.unzip("input/col3.war", tempDir1);
-			
-			//Util.runCommand("dir");
-			//Util.runCommand(isLinux, "java -jar lib/jd-cli.jar -od " + tempDir2.getAbsolutePath() + " " + tempDir1.getAbsolutePath());
-			
-			//String runDecompileJD = "java -jar lib/jd-cli.jar -od " + tempDir2.getAbsolutePath() + " " + filePath;
-			String runDecompile = "java -jar lib/cfr-0.146.jar -cp " + filePath + " --outputdir " + decompiledPath;
+
+			String runDecompile = String.format("java -jar lib/%s -cp %s --outputdir %s", cfrJar, filePath, decompiledPath);
 			log.debug("Running: " + runDecompile);
 			Util.runCommand(isLinux, runDecompile);
 

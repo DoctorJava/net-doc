@@ -1,4 +1,7 @@
-#Thu Sep 26 19:09:17 CDT 2019
+#Thu Oct 24 11:03:49 CDT 2019
 source-file=JEE8-Sample.war
-source-directory=D\:/dev/tools/NetDoc/sample/
+source-directory=D\:/dev/tools/NetDoc/samples/
+source-type=A
+classpath=.
+app-name=JEE8-Sample
 subpackages=.

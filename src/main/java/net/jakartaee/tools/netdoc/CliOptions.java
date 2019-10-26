@@ -11,6 +11,7 @@ public class CliOptions {
     //public static final String CREATE = "create";
     public static final String PROMPT = "prompt";
     
+    public static final String CFR_JAR = "cfr-jar";
     public static final String SOURCE_TYPE = "source-type";
     public static final String SOURCE_DIR = "source-directory";
     public static final String SOURCE_FILE = "source-file";
@@ -39,6 +40,12 @@ public class CliOptions {
                 .hasArg(false)
                 .longOpt(PROMPT)
                 .desc("Interactively prompt for options to be used.  Entries will be saved in the properties file.")
+                .build();
+        final Option cfrJarOption = Option.builder("j")
+                .required(false)
+                .hasArg()
+                .longOpt(CFR_JAR)
+                .desc("CFR Java Decompiler jar file name ( Ex: cfr-0.147.jar )")
                 .build();
         final Option sourceTypeOption = Option.builder("t")
                 .required(false)
@@ -104,6 +111,7 @@ public class CliOptions {
         final Options options = new Options();
         options.addOption(helpOption);
         options.addOption(promptOption);
+        options.addOption(cfrJarOption);      
         options.addOption(sourceTypeOption);
         options.addOption(sourceDirOption);
         options.addOption(sourceFileOption);
@@ -128,9 +136,9 @@ public class CliOptions {
     public static final void printHelp(final String applicationName) {
         final HelpFormatter formatter = new HelpFormatter();
         final String syntax = applicationName;
-        final String usageHeader = "Veritas Watermark Audit Tool";
+        final String usageHeader = "NetDoc Java network connection documentation tool.";
         String usageFooter = "Examples: \n";
-        usageFooter += "    java -jar jeeAttackSurface.jar -v\n";
+        usageFooter += "    java -jar net-doc-jee.jar -p\n";
         usageFooter += "See http://jakartaee.net/tools";
         formatter.printHelp(syntax, usageHeader, getOptions(), usageFooter);
     }

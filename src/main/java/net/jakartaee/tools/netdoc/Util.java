@@ -12,12 +12,20 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+import java.util.zip.ZipOutputStream;
 
 public class Util {
 	final static int BUFFER = 2048;
 	
 	public static final String[] ignoreExt = new String[] { "gif", "png", "jpg", "jpeg", "svg", "css", "scss"};
 	public static final Set<String> IGNORE_EXT = new HashSet<>(Arrays.asList(ignoreExt));
+	
+	public static String withSlashStar(String path) {
+		if ( path.endsWith("*") ) return path;
+		else if ( path.endsWith("/") ) return path + "*";
+		else if ( path.endsWith("\\") ) return path + "*";
+		else  return path + "/*"; 
+	}
 
 //	public static void unzip(String zipFilePath, File tempDir) throws IOException {
 //		try {
@@ -63,6 +71,67 @@ public class Util {
         System.out.println("Unjaring file: " + jarFilePath + " to temp directory: " + tempDir);
 
     }
+ 
+    
+//    public static void zipDir(String zipFilePath, String dir) throws Exception {
+//    	File dirObj = new File(dir);
+//    	zipFilePath = "D:!temp\bingo.zip";
+//    	File zipFile = new File(zipFilePath);
+//    	if(!zipFile.exists()){ zipFile.createNewFile(); }
+//    	else{ System.out.println("File already exists"); }
+//    	
+//    	try ( FileOutputStream fos = new FileOutputStream(zipFile,false);
+//    		  ZipOutputStream  zos = new ZipOutputStream(fos); ){
+//            
+//            System.out.println("Creating : " + zipFile);
+//            addDir(dirObj, zos);
+//            zos.close();
+//            fos.close();
+//            System.out.println("Done Creating : " + zos + " from " + fos);
+//   		
+//    	}
+//    	catch(Exception e) {
+//    		e.printStackTrace();
+//    	}
+//       
+//      }
+    
+	public static void zipDir(String zipFileName, String dir) throws Exception {
+		File dirObj = new File(dir);
+		ZipOutputStream zos = new ZipOutputStream(new FileOutputStream(zipFileName));
+		System.out.println("Creating : " + zipFileName);
+		addDir(dirObj, zos);
+		zos.finish();
+		//out.close();
+	}
+
+    private static void addDir(File dirObj, ZipOutputStream out) throws IOException {
+        File[] files = dirObj.listFiles();
+        byte[] tmpBuf = new byte[1024];
+
+        for (int i = 0; i < files.length; i++) {
+          if (files[i].isDirectory()) {
+            addDir(files[i], out);
+            continue;
+          }
+          
+          FileInputStream in = new FileInputStream(files[i].getAbsolutePath());
+         
+          String filePath = files[i].getPath();
+          if ( filePath.contains(":")) filePath = filePath.substring( filePath.indexOf(":") + 1);  // Strip drive from Windows Path (D:/) because it is illegal for zip file
+          if ( filePath.startsWith("/") || filePath.startsWith("\\") ) filePath = filePath.substring(1);  // Strip drive from Windows Path (D:/) because it is illegal for zip file
+
+          System.out.println(" Adding: " + filePath);
+          out.putNextEntry(new ZipEntry(filePath));
+          
+          int len;
+          while ((len = in.read(tmpBuf)) > 0) {
+            out.write(tmpBuf, 0, len);
+          }
+          out.closeEntry();
+          in.close();
+        }
+      }
     
     //public void unzip(String zipFilePath, String destDirectory) throws IOException {
     public static void unzip(String zipFilePath, File tempDir) throws IOException {
@@ -106,7 +175,7 @@ public class Util {
                 bos.write(bytesIn, 0, read);
             }   		
     	}catch ( Exception e) {
-    		System.out.println("EEEEEEEEEEEEError extracting file: " + filePath);
+    		System.out.println("EEEEEEEEEEEEError extracting file: " + filePath + " with error: " + e.getMessage());
     	}
 
     }

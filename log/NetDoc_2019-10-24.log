@@ -1,0 +1,8 @@
+11:02:27.910 [main] DEBUG net.jakartaee.tools.netdoc.Main - java -jar net-doc-jee.jar -p
+11:02:27.913 [main] DEBUG net.jakartaee.tools.netdoc.Main - Got prop SOURCE_DIR: D:/dev/tools/NetDoc/sample/
+11:02:48.817 [main] DEBUG net.jakartaee.tools.netdoc.Main - Running: java -jar net-doc-jee.jar  -s D:/dev/tools/NetDoc/sample/
+11:03:37.006 [main] DEBUG net.jakartaee.tools.netdoc.Main - java -jar net-doc-jee.jar -p
+11:03:37.008 [main] DEBUG net.jakartaee.tools.netdoc.Main - Got prop SOURCE_DIR: D:/dev/tools/NetDoc/samples/
+11:03:49.453 [main] DEBUG net.jakartaee.tools.netdoc.Main - Running: java -jar net-doc-jee.jar  -s D:/dev/tools/NetDoc/samples/
+11:03:49.945 [main] DEBUG net.jakartaee.tools.netdoc.Main - Running: java -jar lib/cfr-0.146.jar -cp D:/dev/tools/NetDoc/samples/JEE8-Sample.war --outputdir C:/Users/scott/AppData/Local/Temp/netdoc2/decompiled
+11:03:50.021 [main] DEBUG net.jakartaee.tools.netdoc.Main - Running: javadoc -doclet net.jakartaee.tools.netdoc.JeeScannerDoclet -docletpath lib/net-doc-jee-doclet.jar -subpackages . -sourcepath "C:/Users/scott/AppData/Local/Temp/netdoc2/decompiled" -classpath "./lib/*;C:/Users/scott/AppData/Local/Temp/netdoc2/WEB-INF/lib/*;C:/Users/scott/AppData/Local/Temp/netdoc2/BOOT-INF/lib/*;." 
