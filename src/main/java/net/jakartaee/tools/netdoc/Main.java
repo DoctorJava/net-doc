@@ -416,6 +416,7 @@ public class Main {
 	private static void outputReports(String json, String info) throws IOException {
 		String OUT_JSON = "out/net-doc-jee-report_"+info+".json";
 		String OUT_HTML = "out/net-doc-jee-report_"+info+".html";
+		String OUT_MHTML = "out/net-doc-jee-report_"+info+".mhtml";
 		
 		try(BufferedWriter writer = new BufferedWriter(new FileWriter(OUT_JSON))){
 		    writer.write(JsonOutput.prettyPrint(json)); 
@@ -423,10 +424,14 @@ public class Main {
 		}
 			
 		try(BufferedWriter writer = new BufferedWriter(new FileWriter(OUT_HTML))){
-		    writer.write(Util.convertJsToHtml( Util.convertJsonToJs(json) )); 
+		    writer.write(Util.convertJsToHtml( Util.convertJsonToJs(json), false )); 
 		    System.out.println("Output HTML file: " + OUT_HTML);
 		}
 		
+		try(BufferedWriter writer = new BufferedWriter(new FileWriter(OUT_MHTML))){
+		    writer.write(Util.convertJsToHtml( Util.convertJsonToJs(json), true )); 
+		    System.out.println("Output HTML file: " + OUT_MHTML);
+		}		
 	}
 	private static void abort(String message) {
 		System.err.println(message);

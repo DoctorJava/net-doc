@@ -282,9 +282,38 @@ public class Util {
 		
 	}
 	
-	public static String convertJsToHtml(String js) {
-		final String before = "<!DOCTYPE html><html><title>Net Doc</title> <script type=\"text/javascript\" src=\"js/templates/servlet.js\"></script> <script type=\"text/javascript\" src=\"js/templates/service.js\"></script> <script type=\"text/javascript\" src=\"js/templates/connection.js\"></script> <script type=\"text/javascript\" src=\"js/templates/socket.js\"></script> <link rel=\"stylesheet\" href=\"netdoc.css\">";
-		final String after = "<body><h1><center>Net Doc Report</center></h1><div id=\"app\"></div> <script>document.getElementById(\"app\").innerHTML=`<h1>Servlets</h1><ul>${servlets.map(servletTemplate).join(\"\")}</ul><h1>Web Services</h1><ul>${services.map(serviceTemplate).join(\"\")}</ul><h1>Net Connections</h1><ul>${connections.map(connectionTemplate).join(\"\")}</ul><h1>Web Sockets</h1><ul>${sockets.map(socketTemplate).join(\"\")}</ul>`;</script></body>";
-		return before + "<script>" + js + "</script>" + after;
+//	public static String convertJsToHtml(String js, boolean isSingleFile) {
+//		final String before = "<!DOCTYPE html><html><title>Net Doc</title> <script type=\"text/javascript\" src=\"js/templates/servlet.js\"></script> <script type=\"text/javascript\" src=\"js/templates/service.js\"></script> <script type=\"text/javascript\" src=\"js/templates/connection.js\"></script> <script type=\"text/javascript\" src=\"js/templates/socket.js\"></script> <link rel=\"stylesheet\" href=\"netdoc.css\">";
+//		final String after = "<body><h1><center>Net Doc Report</center></h1><div id=\"app\"></div> <script>document.getElementById(\"app\").innerHTML=`<h1>Servlets</h1><ul>${servlets.map(servletTemplate).join(\"\")}</ul><h1>Web Services</h1><ul>${services.map(serviceTemplate).join(\"\")}</ul><h1>Net Connections</h1><ul>${connections.map(connectionTemplate).join(\"\")}</ul><h1>Web Sockets</h1><ul>${sockets.map(socketTemplate).join(\"\")}</ul>`;</script></body>";
+//		return before + "<script>" + js + "</script>" + after;
+//	}
+	public static String convertJsToHtml(String js, boolean isSingleFile) {
+		String returnStr = "<!DOCTYPE html><html>";
+		final String head = ( isSingleFile ? getHTMLHead(js) : getMHTMLHead(js));
+		final String body = "<body><h1><center>Net Doc Report</center></h1><div id=\"app\"></div> <script>document.getElementById(\"app\").innerHTML=`<h1>Servlets</h1><ul>${servlets.map(servletTemplate).join(\"\")}</ul><h1>Web Services</h1><ul>${services.map(serviceTemplate).join(\"\")}</ul><h1>Net Connections</h1><ul>${connections.map(connectionTemplate).join(\"\")}</ul><h1>Web Sockets</h1><ul>${sockets.map(socketTemplate).join(\"\")}</ul>`;</script></body>";
+		returnStr += head + body + "</html>";
+		return returnStr;
+	}
+	private static String getHTMLHead(String js) {
+		String returnStr = "<head>";
+		returnStr += "<title>Net Doc</title> ";
+		returnStr += "<script type=\"text/javascript\" src=\"js/templates/servlet.js\"></script>";
+		returnStr += "<script type=\"text/javascript\" src=\"js/templates/service.js\"></script>";
+		returnStr += "<script type=\"text/javascript\" src=\"js/templates/connection.js\"></script> ";
+		returnStr += "<script type=\"text/javascript\" src=\"js/templates/socket.js\"></script>";
+		returnStr += "<link rel=\"stylesheet\" href=\"netdoc.css\">";
+		returnStr += "<script>" + js + "</script>";
+		return returnStr + "</head>";
+	}
+	private static String getMHTMLHead(String js) {
+		String returnStr = "<head>";
+		returnStr += "<title>Net Doc</title> ";
+		returnStr += "<script type=\"text/javascript\" src=\"js/templates/servlet.js\"></script>";
+		returnStr += "<script type=\"text/javascript\" src=\"js/templates/service.js\"></script>";
+		returnStr += "<script type=\"text/javascript\" src=\"js/templates/connection.js\"></script> ";
+		returnStr += "<script type=\"text/javascript\" src=\"js/templates/socket.js\"></script>";
+		returnStr += "<link rel=\"stylesheet\" href=\"netdoc.css\">";
+		returnStr += "<script>" + js + "</script>";
+		return returnStr + "</head>";
 	}
 }
