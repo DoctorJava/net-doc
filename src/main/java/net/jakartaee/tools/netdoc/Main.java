@@ -22,14 +22,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class Main {
-    private static final Logger log = LoggerFactory.getLogger(Main.class);
-
+    private static final Logger logger = LoggerFactory.getLogger( Main.class );  
 	private static final String PROPS_FILE = "net-doc.props";
 	private static final String SYNTAX = "java -jar net-doc-jee.jar ";
 	private static final String FINISH_MSG = "Finished.";
 	private static final String TEMP_DIR = "netdoc";
-	private static final String TEMP_DIR1 = "netdoc1";
-	private static final String TEMP_DIR2 = "netdoc2";
+	//private static final String TEMP_DIR1 = "netdoc1";
+	//private static final String TEMP_DIR2 = "netdoc2";
 	
 	private static Properties props = new Properties();		
 	
@@ -67,11 +66,16 @@ public class Main {
 	public static void main(String[] args) throws Exception {
 		
 		String mainCmd = SYNTAX + String.join(" ", Arrays.asList(args));
-		log.debug(mainCmd);
+		logger.info(mainCmd);
+		
+		CommandLine cl = CliOptions.generateCommandLine(args);
+		System.out.println();
+		String propFile = PROPS_FILE;
+		if (cl.getOptionValue(CliOptions.PROP_FILE) != null ) propFile = cl.getOptionValue(CliOptions.PROP_FILE);
 
-		try ( InputStream fis = new FileInputStream(PROPS_FILE); ) {
+		try ( InputStream fis = new FileInputStream(propFile); ) {
 			props.load(fis);
-			log.debug("Got prop SOURCE_DIR: " + props.getProperty(CliOptions.SOURCE_DIR));
+			logger.info("Got prop SOURCE_DIR: " + props.getProperty(CliOptions.SOURCE_DIR));
 		} catch (IOException e) {
 			props.setProperty(CliOptions.SOURCE_TYPE, "A");
 			props.setProperty(CliOptions.SOURCE_DIR, ".");
@@ -80,12 +84,6 @@ public class Main {
 			
 		}
 		
-		
-		CommandLine cl = CliOptions.generateCommandLine(args);
-		System.out.println();
-		//String rootDir = null;
-        //String outputFile = "out.json";
-
 		boolean isVerbose = false;
 		boolean isKeepTemp = false;
 		boolean isLinux = false;
@@ -100,8 +98,7 @@ public class Main {
 			if (cl.hasOption(CliOptions.IS_LINUX)) isLinux = true;
 			if (cl.getOptionValue(CliOptions.CFR_JAR) != null )  props.setProperty(CliOptions.CFR_JAR, cl.getOptionValue(CliOptions.CFR_JAR));
 			
-
-            if (cl.hasOption(CliOptions.PROMPT)) {
+            if (cl.hasOption(CliOptions.INTERACTIVE)) {
                 handlePropInput(buf,CliOptions.SOURCE_TYPE, false);
                 handlePropInput(buf,CliOptions.SOURCE_DIR, true);
                 if ( props.getProperty(CliOptions.SOURCE_TYPE).toUpperCase().startsWith("A") ) {
@@ -133,7 +130,7 @@ public class Main {
                 //if ( fileFolderExists("sample") ) abort("Aborting program.  The directory of the source java/class/jar files (sample) does not exist.");
                 //if ( fileFolderExists(filePath) ) abort("Aborting program.  The directory of the source java/class/jar files (" + filePath + ") does not exist.");
                 
-                log.debug("Running: " + SYNTAX + " -s " +   props.getProperty(CliOptions.SOURCE_DIR));
+                logger.info("Running: " + SYNTAX + " -s " +   props.getProperty(CliOptions.SOURCE_DIR));
             } else {
             	if (props.getProperty(CliOptions.SOURCE_DIR) != null) {
     				if (!fileFolderExists( props.getProperty(CliOptions.SOURCE_DIR)))
@@ -160,7 +157,14 @@ public class Main {
 //    				abort("Unknown 'source-type'.  Valid values are A) web/jar archive, C) classes, or S) source files.");
 //	        } 
 			SOURCE_TYPE sourceType = Enum.valueOf(SOURCE_TYPE.class, props.getProperty(CliOptions.SOURCE_TYPE).toUpperCase());
-			run(sourceType, isLinux, isKeepTemp);
+			
+			System.out.println("---------- NetDoc Scanning Properties ----------");
+			System.out.println("File: " + propFile);
+			System.out.println();
+			System.out.println(props.toString().replace(", ", "\n").replace("{", "").replace("}", ""));  
+			System.out.println("------------------------------------------------");
+			
+			run(sourceType, isLinux, isKeepTemp, isVerbose);
 			
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -169,7 +173,7 @@ public class Main {
 
 	}
 	
-	private static void run(SOURCE_TYPE sourceType, boolean isLinux, boolean keepTemp) throws IOException {
+	private static void run(SOURCE_TYPE sourceType, boolean isLinux, boolean keepTemp, boolean isVerbose) throws IOException {
 		File tempDir = Util.createTempDir(TEMP_DIR);
 		String tempPath = tempDir.getAbsolutePath().replace("\\","/");		// replace windows backslash because either works with the cmd
 
@@ -192,19 +196,19 @@ public class Main {
 					Util.unzip(filePath, tempDir);
 					
 					String runDecompileA = String.format("java -jar lib/%s -cp %s --outputdir %s", cfrJar, filePath, decompiledPath);
-					log.debug("Running: " + runDecompileA);
-					Util.runCommand(isLinux, runDecompileA);
+					logger.debug("Running: " + runDecompileA);
+					Util.runCommand(isLinux, runDecompileA, isVerbose);
 					break;
 				case C:
 					classPath += ";lib/*;" + tempPath + "/WEB-INF/lib/*;" + tempPath + "/BOOT-INF/lib/*;";
 					String zipPath = tempPath + "/" + props.getProperty(CliOptions.APP_NAME)+".jar";
 		        	String runJar = String.format("jar cvf %s %s", zipPath, sourceDir);
-					log.debug("Running: " + runJar);
-					Util.runCommand(isLinux, runJar);
+					logger.debug("Running: " + runJar);
+					Util.runCommand(isLinux, runJar, isVerbose);
 	
 					String runDecompileC = String.format("java -jar lib/%s -cp %s --outputdir %s", cfrJar, zipPath, decompiledPath);
-					log.debug("Running: " + runDecompileC);
-					Util.runCommand(isLinux, runDecompileC);
+					logger.debug("Running: " + runDecompileC);
+					Util.runCommand(isLinux, runDecompileC, isVerbose);
 
 					break;
 				case S:
@@ -214,21 +218,21 @@ public class Main {
 			}
 			
 			String runJavaDoc = String.format("javadoc -doclet net.jakartaee.tools.netdoc.JeeScannerDoclet -docletpath lib/net-doc-jee-doclet.jar -subpackages %s -sourcepath \"%s\" -classpath \"%s\" ", subPackages, decompiledPath, classPath);
-			log.debug("Running: " + runJavaDoc);
-			String gotOutput = Util.runCommand(isLinux, runJavaDoc);
+			logger.debug("Running: " + runJavaDoc);
+			String gotOutput = Util.runCommand(isLinux, runJavaDoc, isVerbose);
 			
 			String START_AFTER = "Constructing Javadoc information...";
 			int iJson = gotOutput.indexOf(START_AFTER);
-			System.out.println("Found START_AFTER at: " + iJson);
+			logger.debug("Found START_AFTER at: " + iJson);
 			if ( iJson > 0 ) {
 				gotOutput = gotOutput.substring(iJson + START_AFTER.length());
 				String TRIM_AFTER ="}]}]}";		// TODO:  This is a hack.  The Javadoc sometimes writes "# Warnings" after the closing json
 				int iTrim = gotOutput.indexOf(TRIM_AFTER);
 				gotOutput = gotOutput.substring(0,iTrim + TRIM_AFTER.length());				
 			}
-			System.out.println("Got JSON Output from ARCHIVE: ");
-			System.out.println(gotOutput);
-			System.out.println();
+			logger.debug("Got JSON Output from ARCHIVE: ");
+			logger.debug(gotOutput);
+
 			outputReports(gotOutput, props.getProperty(CliOptions.APP_NAME));
 
 		} catch (Exception e) {
@@ -243,182 +247,184 @@ public class Main {
 
 	}
 	
-	private static void runSource(boolean isLinux, boolean keepTemp) throws IOException {
-        try {
-			String sourceDir = props.getProperty(CliOptions.SOURCE_DIR);
-			String classPath = props.getProperty(CliOptions.CLASSPATH);
-			String subPackages = props.getProperty(CliOptions.SUBPACKAGES);
-			// if ( subPackages == null || subPackages.length() <=0 ) subPackages = ".";  This check is done in the Main method
-			
-			String runJavaDoc = String.format("javadoc -doclet net.jakartaee.tools.netdoc.JeeScannerDoclet -docletpath lib/net-doc-jee-doclet.jar -subpackages %s -sourcepath %s -classpath \"./lib/*;%s/*\"", subPackages, sourceDir, classPath);
-			log.debug("Running: " + runJavaDoc);
-			String gotOutput = Util.runCommand(isLinux, runJavaDoc);
-			
-			String START_AFTER = "Constructing Javadoc information...";
-			int iJson = gotOutput.indexOf(START_AFTER);
-			System.out.println("Found START_AFTER at: " + iJson);
-			if ( iJson > 0 ) {
-				gotOutput = gotOutput.substring(iJson + START_AFTER.length());
-				String TRIM_AFTER ="}]}]}";		// TODO:  This is a hack.  The Javadoc sometimes writes "# Warnings" after the closing json
-				int iTrim = gotOutput.indexOf(TRIM_AFTER);
-				gotOutput = gotOutput.substring(0,iTrim + TRIM_AFTER.length());				
-			}
-			System.out.println("Got JSON Output from SOURCE: ");
-			System.out.println(gotOutput);
-			System.out.println();
-			outputReports(gotOutput, props.getProperty(CliOptions.APP_NAME));
-
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} 
-		
-
-	}
-	
-	private static void runClasses(boolean isLinux, boolean keepTemp) throws IOException {
-		
-		//
-		// TODO: Maybe it is easiest to jar up the folder and the call CFR, rather than figuring out how to call CFR recursively on a folder
-		//
-		
-		File tempDir1 = Util.createTempDir(TEMP_DIR1);
-		//String t1 = tempDir1.getAbsolutePath().replace("\\","/");		// replace windows backslash because either works with the cmd
-		String t1 = tempDir1.getAbsolutePath();		//  windows backslash is necessary for the zipDir
-		String zipPath = t1 + "\\" + props.getProperty(CliOptions.APP_NAME);
-		String decompiledPath = t1 + "/decompiled";
-
-		String cfrJar = props.getProperty(CliOptions.CFR_JAR);
-		String sourceDir = props.getProperty(CliOptions.SOURCE_DIR);
-		String classpath = props.getProperty(CliOptions.CLASSPATH);
-
-		String subPackages = props.getProperty(CliOptions.SUBPACKAGES);
-
-				
-        try {
-			//Util.deleteDir(tempDir1);	// Be sure to clean out old temp dirs if they exist
-			//Util.deleteDir(tempDir2);		
-        	
-			//Util.zipDir(zipPath, sourceDir);  THis didn't work
-        	
-        	String runJar = String.format("jar cvf %s.jar %s", zipPath, sourceDir);
-			log.debug("Running: " + runJar);
-			Util.runCommand(isLinux, runJar);
-			
-			//String filePath = props.getProperty(CliOptions.SOURCE_DIR) + props.getProperty(CliOptions.SOURCE_FILE);
-			//String runDecompile = "java -jar lib/cfr-0.146.jar -cp " + zipPath + " --outputdir " + decompiledPath;
-			String runDecompile = String.format("java -jar lib/%s -cp %s --outputdir %s", cfrJar, zipPath, decompiledPath);
-			log.debug("Running: " + runDecompile);
-			Util.runCommand(isLinux, runDecompile);
-
-			
-			//String runJavaDoc = String.format("javadoc -doclet net.jakartaee.tools.netdoc.JeeScannerDoclet -docletpath lib/net-doc-jee-doclet.jar -subpackages %s -sourcepath %s\\WEB-INF\\classes -classpath \"./lib/*;%s\\WEB-INF\\lib\\*\"", props.getProperty(CliOptions.SUBPACKAGES), tempDir2.getAbsolutePath(), tempDir2.getAbsolutePath());
-			String runJavaDoc = String.format("javadoc -doclet net.jakartaee.tools.netdoc.JeeScannerDoclet -docletpath lib/net-doc-jee-doclet.jar -subpackages %s -sourcepath \"%s\" -classpath \"%s\" ", subPackages, decompiledPath, classpath);
-			log.debug("Running: " + runJavaDoc);
-			String gotOutput = Util.runCommand(isLinux, runJavaDoc);
-			
-			String START_AFTER = "Constructing Javadoc information...";
-			int iJson = gotOutput.indexOf(START_AFTER);
-			System.out.println("Found START_AFTER at: " + iJson);
-			if ( iJson > 0 ) {
-				gotOutput = gotOutput.substring(iJson + START_AFTER.length());
-				String TRIM_AFTER ="}]}]}";		// TODO:  This is a hack.  The Javadoc sometimes writes "# Warnings" after the closing json
-				int iTrim = gotOutput.indexOf(TRIM_AFTER);
-				gotOutput = gotOutput.substring(0,iTrim + TRIM_AFTER.length());				
-			}
-			System.out.println("Got JSON Output from ARCHIVE: ");
-			System.out.println(gotOutput);
-			System.out.println();
-			outputReports(gotOutput, props.getProperty(CliOptions.APP_NAME));
-
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} finally {			// TODO: This doesn't get executed with javadoc command exits with error.
-			if ( !keepTemp ) {
-				//Util.deleteDir(tempDir1);	
-				Util.deleteDir(tempDir1);							
-			}
-		}
-		
-
-	}	
-
-	
-	private static void runArchive(boolean isLinux, boolean keepTemp) throws IOException {
-		//File tempDir1 = Util.createTempDir(TEMP_DIR1);
-		File tempDir2 = Util.createTempDir(TEMP_DIR2);
-		String t2 = tempDir2.getAbsolutePath().replace("\\","/");		// replace windows backslash because either works with the cmd
-		//String t2 = tempDir2.getAbsolutePath();		
-
-		//String sourcepath = t2 + "/WEB-INF/classes;" + t2 + "/BOOT-INF/classes*;";
-		String cfrJar = props.getProperty(CliOptions.CFR_JAR);
-		String decompiledPath = t2 + "/decompiled";
-
-		String classpath = "./lib/*;" + t2 + "/WEB-INF/lib/*;" + t2 + "/BOOT-INF/lib/*;";
-			   classpath += props.getProperty(CliOptions.CLASSPATH);
-
-		String subPackages = props.getProperty(CliOptions.SUBPACKAGES);
-
-				
-        try {
-			//Util.deleteDir(tempDir1);	// Be sure to clean out old temp dirs if they exist
-			//Util.deleteDir(tempDir2);			
-			
-			String filePath = props.getProperty(CliOptions.SOURCE_DIR) + props.getProperty(CliOptions.SOURCE_FILE);
-			
-			//String runUnjar = String.format("jar xvf %s -C %s",filePath, tempDir2);
-			//log.debug("Running: " + runUnjar);
-			//Util.runCommand(isLinux, runUnjar);
-			
-			Util.unzip(filePath, tempDir2);
-
-			String runDecompile = String.format("java -jar lib/%s -cp %s --outputdir %s", cfrJar, filePath, decompiledPath);
-			log.debug("Running: " + runDecompile);
-			Util.runCommand(isLinux, runDecompile);
-
-			
-			//String runJavaDoc = String.format("javadoc -doclet net.jakartaee.tools.netdoc.JeeScannerDoclet -docletpath lib/net-doc-jee-doclet.jar -subpackages %s -sourcepath %s\\WEB-INF\\classes -classpath \"./lib/*;%s\\WEB-INF\\lib\\*\"", props.getProperty(CliOptions.SUBPACKAGES), tempDir2.getAbsolutePath(), tempDir2.getAbsolutePath());
-			String runJavaDoc = String.format("javadoc -doclet net.jakartaee.tools.netdoc.JeeScannerDoclet -docletpath lib/net-doc-jee-doclet.jar -subpackages %s -sourcepath \"%s\" -classpath \"%s\" ", subPackages, decompiledPath, classpath);
-			log.debug("Running: " + runJavaDoc);
-			String gotOutput = Util.runCommand(isLinux, runJavaDoc);
-			
-			String START_AFTER = "Constructing Javadoc information...";
-			int iJson = gotOutput.indexOf(START_AFTER);
-			System.out.println("Found START_AFTER at: " + iJson);
-			if ( iJson > 0 ) {
-				gotOutput = gotOutput.substring(iJson + START_AFTER.length());
-				String TRIM_AFTER ="}]}]}";		// TODO:  This is a hack.  The Javadoc sometimes writes "# Warnings" after the closing json
-				int iTrim = gotOutput.indexOf(TRIM_AFTER);
-				gotOutput = gotOutput.substring(0,iTrim + TRIM_AFTER.length());				
-			}
-			System.out.println("Got JSON Output from ARCHIVE: ");
-			System.out.println(gotOutput);
-			System.out.println();
-			outputReports(gotOutput, props.getProperty(CliOptions.APP_NAME));
-
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} finally {			// TODO: This doesn't get executed with javadoc command exits with error.
-			if ( !keepTemp ) {
-				//Util.deleteDir(tempDir1);	
-				Util.deleteDir(tempDir2);							
-			}
-		}
-		
-
-	}	
+//	private static void runSource(boolean isLinux, boolean keepTemp) throws IOException {
+//        try {
+//			String sourceDir = props.getProperty(CliOptions.SOURCE_DIR);
+//			String classPath = props.getProperty(CliOptions.CLASSPATH);
+//			String subPackages = props.getProperty(CliOptions.SUBPACKAGES);
+//			// if ( subPackages == null || subPackages.length() <=0 ) subPackages = ".";  This check is done in the Main method
+//			
+//			String runJavaDoc = String.format("javadoc -doclet net.jakartaee.tools.netdoc.JeeScannerDoclet -docletpath lib/net-doc-jee-doclet.jar -subpackages %s -sourcepath %s -classpath \"./lib/*;%s/*\"", subPackages, sourceDir, classPath);
+//			log.debug("Running: " + runJavaDoc);
+//			String gotOutput = Util.runCommand(isLinux, runJavaDoc);
+//			
+//			String START_AFTER = "Constructing Javadoc information...";
+//			int iJson = gotOutput.indexOf(START_AFTER);
+//			System.out.println("Found START_AFTER at: " + iJson);
+//			if ( iJson > 0 ) {
+//				gotOutput = gotOutput.substring(iJson + START_AFTER.length());
+//				String TRIM_AFTER ="}]}]}";		// TODO:  This is a hack.  The Javadoc sometimes writes "# Warnings" after the closing json
+//				int iTrim = gotOutput.indexOf(TRIM_AFTER);
+//				gotOutput = gotOutput.substring(0,iTrim + TRIM_AFTER.length());				
+//			}
+//			System.out.println("Got JSON Output from SOURCE: ");
+//			System.out.println(gotOutput);
+//			System.out.println();
+//			outputReports(gotOutput, props.getProperty(CliOptions.APP_NAME));
+//
+//		} catch (Exception e) {
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		} 
+//		
+//
+//	}
+//	
+//	private static void runClasses(boolean isLinux, boolean keepTemp) throws IOException {
+//		
+//		//
+//		// TODO: Maybe it is easiest to jar up the folder and the call CFR, rather than figuring out how to call CFR recursively on a folder
+//		//
+//		
+//		File tempDir1 = Util.createTempDir(TEMP_DIR1);
+//		//String t1 = tempDir1.getAbsolutePath().replace("\\","/");		// replace windows backslash because either works with the cmd
+//		String t1 = tempDir1.getAbsolutePath();		//  windows backslash is necessary for the zipDir
+//		String zipPath = t1 + "\\" + props.getProperty(CliOptions.APP_NAME);
+//		String decompiledPath = t1 + "/decompiled";
+//
+//		String cfrJar = props.getProperty(CliOptions.CFR_JAR);
+//		String sourceDir = props.getProperty(CliOptions.SOURCE_DIR);
+//		String classpath = props.getProperty(CliOptions.CLASSPATH);
+//
+//		String subPackages = props.getProperty(CliOptions.SUBPACKAGES);
+//
+//				
+//        try {
+//			//Util.deleteDir(tempDir1);	// Be sure to clean out old temp dirs if they exist
+//			//Util.deleteDir(tempDir2);		
+//        	
+//			//Util.zipDir(zipPath, sourceDir);  THis didn't work
+//        	
+//        	String runJar = String.format("jar cvf %s.jar %s", zipPath, sourceDir);
+//			log.debug("Running: " + runJar);
+//			Util.runCommand(isLinux, runJar);
+//			
+//			//String filePath = props.getProperty(CliOptions.SOURCE_DIR) + props.getProperty(CliOptions.SOURCE_FILE);
+//			//String runDecompile = "java -jar lib/cfr-0.146.jar -cp " + zipPath + " --outputdir " + decompiledPath;
+//			String runDecompile = String.format("java -jar lib/%s -cp %s --outputdir %s", cfrJar, zipPath, decompiledPath);
+//			log.debug("Running: " + runDecompile);
+//			Util.runCommand(isLinux, runDecompile);
+//
+//			
+//			//String runJavaDoc = String.format("javadoc -doclet net.jakartaee.tools.netdoc.JeeScannerDoclet -docletpath lib/net-doc-jee-doclet.jar -subpackages %s -sourcepath %s\\WEB-INF\\classes -classpath \"./lib/*;%s\\WEB-INF\\lib\\*\"", props.getProperty(CliOptions.SUBPACKAGES), tempDir2.getAbsolutePath(), tempDir2.getAbsolutePath());
+//			String runJavaDoc = String.format("javadoc -doclet net.jakartaee.tools.netdoc.JeeScannerDoclet -docletpath lib/net-doc-jee-doclet.jar -subpackages %s -sourcepath \"%s\" -classpath \"%s\" ", subPackages, decompiledPath, classpath);
+//			log.debug("Running: " + runJavaDoc);
+//			String gotOutput = Util.runCommand(isLinux, runJavaDoc);
+//			
+//			String START_AFTER = "Constructing Javadoc information...";
+//			int iJson = gotOutput.indexOf(START_AFTER);
+//			System.out.println("Found START_AFTER at: " + iJson);
+//			if ( iJson > 0 ) {
+//				gotOutput = gotOutput.substring(iJson + START_AFTER.length());
+//				String TRIM_AFTER ="}]}]}";		// TODO:  This is a hack.  The Javadoc sometimes writes "# Warnings" after the closing json
+//				int iTrim = gotOutput.indexOf(TRIM_AFTER);
+//				gotOutput = gotOutput.substring(0,iTrim + TRIM_AFTER.length());				
+//			}
+//			System.out.println("Got JSON Output from ARCHIVE: ");
+//			System.out.println(gotOutput);
+//			System.out.println();
+//			outputReports(gotOutput, props.getProperty(CliOptions.APP_NAME));
+//
+//		} catch (Exception e) {
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		} finally {			// TODO: This doesn't get executed with javadoc command exits with error.
+//			if ( !keepTemp ) {
+//				//Util.deleteDir(tempDir1);	
+//				Util.deleteDir(tempDir1);							
+//			}
+//		}
+//		
+//
+//	}	
+//
+//	
+//	private static void runArchive(boolean isLinux, boolean keepTemp) throws IOException {
+//		//File tempDir1 = Util.createTempDir(TEMP_DIR1);
+//		File tempDir2 = Util.createTempDir(TEMP_DIR2);
+//		String t2 = tempDir2.getAbsolutePath().replace("\\","/");		// replace windows backslash because either works with the cmd
+//		//String t2 = tempDir2.getAbsolutePath();		
+//
+//		//String sourcepath = t2 + "/WEB-INF/classes;" + t2 + "/BOOT-INF/classes*;";
+//		String cfrJar = props.getProperty(CliOptions.CFR_JAR);
+//		String decompiledPath = t2 + "/decompiled";
+//
+//		String classpath = "./lib/*;" + t2 + "/WEB-INF/lib/*;" + t2 + "/BOOT-INF/lib/*;";
+//			   classpath += props.getProperty(CliOptions.CLASSPATH);
+//
+//		String subPackages = props.getProperty(CliOptions.SUBPACKAGES);
+//
+//				
+//        try {
+//			//Util.deleteDir(tempDir1);	// Be sure to clean out old temp dirs if they exist
+//			//Util.deleteDir(tempDir2);			
+//			
+//			String filePath = props.getProperty(CliOptions.SOURCE_DIR) + props.getProperty(CliOptions.SOURCE_FILE);
+//			
+//			//String runUnjar = String.format("jar xvf %s -C %s",filePath, tempDir2);
+//			//log.debug("Running: " + runUnjar);
+//			//Util.runCommand(isLinux, runUnjar);
+//			
+//			Util.unzip(filePath, tempDir2);
+//
+//			String runDecompile = String.format("java -jar lib/%s -cp %s --outputdir %s", cfrJar, filePath, decompiledPath);
+//			log.debug("Running: " + runDecompile);
+//			Util.runCommand(isLinux, runDecompile);
+//
+//			
+//			//String runJavaDoc = String.format("javadoc -doclet net.jakartaee.tools.netdoc.JeeScannerDoclet -docletpath lib/net-doc-jee-doclet.jar -subpackages %s -sourcepath %s\\WEB-INF\\classes -classpath \"./lib/*;%s\\WEB-INF\\lib\\*\"", props.getProperty(CliOptions.SUBPACKAGES), tempDir2.getAbsolutePath(), tempDir2.getAbsolutePath());
+//			String runJavaDoc = String.format("javadoc -doclet net.jakartaee.tools.netdoc.JeeScannerDoclet -docletpath lib/net-doc-jee-doclet.jar -subpackages %s -sourcepath \"%s\" -classpath \"%s\" ", subPackages, decompiledPath, classpath);
+//			log.debug("Running: " + runJavaDoc);
+//			String gotOutput = Util.runCommand(isLinux, runJavaDoc);
+//			
+//			String START_AFTER = "Constructing Javadoc information...";
+//			int iJson = gotOutput.indexOf(START_AFTER);
+//			System.out.println("Found START_AFTER at: " + iJson);
+//			if ( iJson > 0 ) {
+//				gotOutput = gotOutput.substring(iJson + START_AFTER.length());
+//				String TRIM_AFTER ="}]}]}";		// TODO:  This is a hack.  The Javadoc sometimes writes "# Warnings" after the closing json
+//				int iTrim = gotOutput.indexOf(TRIM_AFTER);
+//				gotOutput = gotOutput.substring(0,iTrim + TRIM_AFTER.length());				
+//			}
+//			System.out.println("Got JSON Output from ARCHIVE: ");
+//			System.out.println(gotOutput);
+//			System.out.println();
+//			outputReports(gotOutput, props.getProperty(CliOptions.APP_NAME));
+//
+//		} catch (Exception e) {
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		} finally {			// TODO: This doesn't get executed with javadoc command exits with error.
+//			if ( !keepTemp ) {
+//				//Util.deleteDir(tempDir1);	
+//				Util.deleteDir(tempDir2);							
+//			}
+//		}
+//		
+//
+//	}	
 	private static void outputReports(String json, String info) throws IOException {
 		String OUT_JSON = "out/net-doc-jee-report_"+info+".json";
 		String OUT_HTML = "out/net-doc-jee-report_"+info+".html";
 		
 		try(BufferedWriter writer = new BufferedWriter(new FileWriter(OUT_JSON))){
-		    writer.write(JsonOutput.prettyPrint(json)); // do something with the file we've opened
+		    writer.write(JsonOutput.prettyPrint(json)); 
+		    System.out.println("Output JSON file: " + OUT_JSON);
 		}
 			
 		try(BufferedWriter writer = new BufferedWriter(new FileWriter(OUT_HTML))){
-		    writer.write(Util.convertJsToHtml( Util.convertJsonToJs(json) )); // do something with the file we've opened
+		    writer.write(Util.convertJsToHtml( Util.convertJsonToJs(json) )); 
+		    System.out.println("Output HTML file: " + OUT_HTML);
 		}
 		
 	}
@@ -430,7 +436,7 @@ public class Main {
 	}
 
 	private static void finish() {
-		log.debug(FINISH_MSG);
+		logger.debug(FINISH_MSG);
 		System.exit(0);
 	}
 	

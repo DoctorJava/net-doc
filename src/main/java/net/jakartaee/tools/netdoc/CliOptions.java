@@ -9,7 +9,8 @@ public class CliOptions {
 
     public static final String HELP = "help";
     //public static final String CREATE = "create";
-    public static final String PROMPT = "prompt";
+    public static final String INTERACTIVE = "interactive";
+    public static final String PROP_FILE = "prop-file";
     
     public static final String CFR_JAR = "cfr-jar";
     public static final String SOURCE_TYPE = "source-type";
@@ -35,17 +36,23 @@ public class CliOptions {
                 .longOpt(HELP)
                 .desc("Print help.")
                 .build();
-        final Option promptOption = Option.builder("p")
+        final Option inputOption = Option.builder("i")
                 .required(false)
                 .hasArg(false)
-                .longOpt(PROMPT)
-                .desc("Interactively prompt for options to be used.  Entries will be saved in the properties file.")
+                .longOpt(INTERACTIVE)
+                .desc("Interactive input prompting for options to be used.  Entries will be saved in the DEFAULT properties file.")
+                .build();
+        final Option propFileOption = Option.builder("p")
+                .required(false)
+                .hasArg()
+                .longOpt(PROP_FILE)
+                .desc("Load options from specified properties file.")
                 .build();
         final Option cfrJarOption = Option.builder("j")
                 .required(false)
                 .hasArg()
                 .longOpt(CFR_JAR)
-                .desc("CFR Java Decompiler jar file name ( Ex: cfr-0.147.jar )")
+                .desc("CFR Java Decompiler jar file name ( Ex: cfr.jar )")
                 .build();
         final Option sourceTypeOption = Option.builder("t")
                 .required(false)
@@ -86,7 +93,7 @@ public class CliOptions {
 //                .build();
         final Option subpackagesOption = Option.builder("s")
                 .required(false)
-                .hasArg(false)
+                .hasArg()
                 .longOpt(SUBPACKAGES)
                 .desc("List of packages to be scanned. (Default all '.')")
                 .build();         
@@ -110,7 +117,8 @@ public class CliOptions {
                 .build();
         final Options options = new Options();
         options.addOption(helpOption);
-        options.addOption(promptOption);
+        options.addOption(inputOption);
+        options.addOption(propFileOption);
         options.addOption(cfrJarOption);      
         options.addOption(sourceTypeOption);
         options.addOption(sourceDirOption);
@@ -138,8 +146,9 @@ public class CliOptions {
         final String syntax = applicationName;
         final String usageHeader = "NetDoc Java network connection documentation tool.";
         String usageFooter = "Examples: \n";
-        usageFooter += "    java -jar net-doc-jee.jar -p\n";
-        usageFooter += "See http://jakartaee.net/tools";
+        usageFooter += "    java -jar net-doc-jee.jar -i [-k, -l, -v]\n";
+        usageFooter += "    java -jar net-doc-jee.jar -p <YOUR_PROP_FILE> [-k, -l, -v]\n";
+        usageFooter += "See http://jakartaee.net/tools\n";
         formatter.printHelp(syntax, usageHeader, getOptions(), usageFooter);
     }
 

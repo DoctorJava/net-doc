@@ -14,11 +14,18 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class Util {
+    private static final Logger logger = LoggerFactory.getLogger( Util.class );  
 	final static int BUFFER = 2048;
 	
 	public static final String[] ignoreExt = new String[] { "gif", "png", "jpg", "jpeg", "svg", "css", "scss"};
 	public static final Set<String> IGNORE_EXT = new HashSet<>(Arrays.asList(ignoreExt));
+	
+	public static final String HR_START = ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>";
+	public static final String HR_END 	= "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<";
 	
 	public static String withSlashStar(String path) {
 		if ( path.endsWith("*") ) return path;
@@ -68,7 +75,7 @@ public class Util {
         if (!destDir.exists()) {
             destDir.mkdir();
         }
-        System.out.println("Unjaring file: " + jarFilePath + " to temp directory: " + tempDir);
+        logger.info("Unjaring file: " + jarFilePath + " to temp directory: " + tempDir);
 
     }
  
@@ -78,16 +85,16 @@ public class Util {
 //    	zipFilePath = "D:!temp\bingo.zip";
 //    	File zipFile = new File(zipFilePath);
 //    	if(!zipFile.exists()){ zipFile.createNewFile(); }
-//    	else{ System.out.println("File already exists"); }
+//    	else{ logger.info("File already exists"); }
 //    	
 //    	try ( FileOutputStream fos = new FileOutputStream(zipFile,false);
 //    		  ZipOutputStream  zos = new ZipOutputStream(fos); ){
 //            
-//            System.out.println("Creating : " + zipFile);
+//            logger.info("Creating : " + zipFile);
 //            addDir(dirObj, zos);
 //            zos.close();
 //            fos.close();
-//            System.out.println("Done Creating : " + zos + " from " + fos);
+//            logger.info("Done Creating : " + zos + " from " + fos);
 //   		
 //    	}
 //    	catch(Exception e) {
@@ -99,7 +106,7 @@ public class Util {
 	public static void zipDir(String zipFileName, String dir) throws Exception {
 		File dirObj = new File(dir);
 		ZipOutputStream zos = new ZipOutputStream(new FileOutputStream(zipFileName));
-		System.out.println("Creating : " + zipFileName);
+		logger.info("Creating : " + zipFileName);
 		addDir(dirObj, zos);
 		zos.finish();
 		//out.close();
@@ -121,7 +128,7 @@ public class Util {
           if ( filePath.contains(":")) filePath = filePath.substring( filePath.indexOf(":") + 1);  // Strip drive from Windows Path (D:/) because it is illegal for zip file
           if ( filePath.startsWith("/") || filePath.startsWith("\\") ) filePath = filePath.substring(1);  // Strip drive from Windows Path (D:/) because it is illegal for zip file
 
-          System.out.println(" Adding: " + filePath);
+          logger.info(" Adding: " + filePath);
           out.putNextEntry(new ZipEntry(filePath));
           
           int len;
@@ -140,12 +147,13 @@ public class Util {
         if (!destDir.exists()) {
             destDir.mkdir();
         }
-        System.out.println("Unzipping file: " + zipFilePath + " to temp directory: " + tempDir);
+        logger.info("Unzipping file: " + zipFilePath + " to temp directory: " + tempDir);
         ZipInputStream zipIn = new ZipInputStream(new FileInputStream(zipFilePath));
         ZipEntry entry = zipIn.getNextEntry();
         // iterates over entries in the zip file
         while (entry != null) {
-            String filePath = destDirectory + File.separator + entry.getName();
+            String filePath = destDirectory + File.separator + entry.getName();  	// Error extracting file: C:\Users\scott\AppData\Local\Temp\netdoc\META-INF/MANIFEST.MF
+            //String filePath = destDirectory + "/" + entry.getName();
             if (!entry.isDirectory()) {
                 // if the entry is a file, extracts it
                 extractFile(zipIn, filePath);
@@ -175,7 +183,7 @@ public class Util {
                 bos.write(bytesIn, 0, read);
             }   		
     	}catch ( Exception e) {
-    		System.out.println("EEEEEEEEEEEEError extracting file: " + filePath + " with error: " + e.getMessage());
+    		logger.info("EEEEEEEEEEEEError extracting file: " + filePath + " with error: " + e.getMessage());
     	}
 
     }
@@ -184,39 +192,55 @@ public class Util {
 		String tempDirStr = File.createTempFile("temp-file", "tmp").getParent()+"/" + dirStr;
 		File tempDir  = new File(tempDirStr);
 		if (tempDir.exists()) {
-			emptyDir(tempDir);
+			//emptyDir(tempDir);
+			deleteDir(tempDir);
 		} else {
 			boolean createdTempFolder = tempDir.mkdirs();
 			if (!createdTempFolder) throw new IOException();
-			System.out.println("Created Temp Directory: "+tempDir.getAbsolutePath());			
+			logger.info("Created Temp Directory: "+tempDir.getAbsolutePath());			
 		}
 		return tempDir;
 	}
 
-	public static void deleteDir(File dir) {
-		emptyDir(dir);
-		dir.delete();
-		System.out.println("Deleted Temp Directory: "+dir.getAbsolutePath());
+//	public static void deleteDir(File dir) {
+//		emptyDir(dir);
+//		dir.delete();
+//		logger.info("Deleted Temp Directory: "+dir.getAbsolutePath());
+//	}
+//	
+//	public static void emptyDir(File dir) {
+//		String[]entries = dir.list();
+//		for(String s: entries){
+//		    File currentFile = new File(dir.getPath(),s);
+//		    currentFile.delete();
+//			logger.info("Deleted file: "+currentFile.getAbsolutePath());
+//		}		
+//	}
+
+	public static boolean  deleteDir(File directoryToBeDeleted) {
+		File[] allContents = directoryToBeDeleted.listFiles();
+		if (allContents != null) {
+			for (File file : allContents) {
+				deleteDir(file);
+			}
+		}
+		return directoryToBeDeleted.delete();
 	}
 	
-	public static void emptyDir(File dir) {
-		String[]entries = dir.list();
-		for(String s: entries){
-		    File currentFile = new File(dir.getPath(),s);
-		    currentFile.delete();
-			System.out.println("Deleted file: "+currentFile.getAbsolutePath());
-		}		
-	}
-	
-	public static String runCommand(boolean isLinux, String cmd) {
+	public static String runCommand(boolean isLinux, String cmd, boolean isVerbose) {
 		StringBuffer output = new StringBuffer();
-		System.out.println("Running command: " + cmd);
+		logger.info("Running command: " + cmd);
         ProcessBuilder processBuilder = new ProcessBuilder();
-        
-        System.out.println("Running LINUX command syntax: "+ isLinux);
-//        if ( isLinux )
-//        	processBuilder.command("bash", "-c", cmd);
-//        else
+        if ( isVerbose ) {
+            System.out.println(HR_START);
+            System.out.println("Running "+ ( isLinux ? "LINUX" : "WINDOWS" ) +" command: ");
+            System.out.println();
+            System.out.println(cmd);
+            System.out.println();       	
+        }
+       if ( isLinux )
+        	processBuilder.command("bash", "-c", cmd);
+        else
         	processBuilder.command("cmd.exe", "/c", cmd);			// Windows
 
         try {
@@ -233,7 +257,7 @@ public class Util {
             }
 
             int exitCode = process.waitFor();
-            System.out.println("\nExited with error code : " + exitCode);
+            logger.info("\nExited with error code : " + exitCode);
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -241,6 +265,8 @@ public class Util {
             e.printStackTrace();
         }
         
+        if ( isVerbose ) System.out.println(HR_END);
+       
         return output.toString();
 
     }
