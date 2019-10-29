@@ -11,6 +11,7 @@ public class CliOptions {
     //public static final String CREATE = "create";
     public static final String INTERACTIVE = "interactive";
     public static final String PROP_FILE = "prop-file";
+    public static final String REPORT_JSON = "report-json";
     
     public static final String CFR_JAR = "cfr-jar";
     public static final String SOURCE_TYPE = "source-type";
@@ -48,6 +49,12 @@ public class CliOptions {
                 .longOpt(PROP_FILE)
                 .desc("Load options from specified properties file.")
                 .build();
+        final Option teportJsonOption = Option.builder("r")
+                .required(false)
+                .hasArg()
+                .longOpt(REPORT_JSON)
+                .desc("Load previously generated Net Doc Report JSON file, or paste text with interactive [R]eport mode.  This can be handy if the javadocs with net-doc-jee-doclet is run from within the IDE.")
+                .build();
         final Option cfrJarOption = Option.builder("j")
                 .required(false)
                 .hasArg()
@@ -70,7 +77,7 @@ public class CliOptions {
                 .required(false)
                 .hasArg()
                 .longOpt(SOURCE_DIR)
-                .desc("Required: Path to directory where the source java/class/jar/war files are located.")
+                .desc("Required: Path to directory where the source java/class/jar/war files are located.  Must be the root of the java package folder hierarchy.")
                 .build();         
         final Option sourceFileOption = Option.builder("f")
                 .required(false)
@@ -119,6 +126,7 @@ public class CliOptions {
         options.addOption(helpOption);
         options.addOption(inputOption);
         options.addOption(propFileOption);
+        options.addOption(teportJsonOption);
         options.addOption(cfrJarOption);      
         options.addOption(sourceTypeOption);
         options.addOption(sourceDirOption);
@@ -148,6 +156,7 @@ public class CliOptions {
         String usageFooter = "Examples: \n";
         usageFooter += "    java -jar net-doc-jee.jar -i [-k, -l, -v]\n";
         usageFooter += "    java -jar net-doc-jee.jar -p <YOUR_PROP_FILE> [-k, -l, -v]\n";
+        usageFooter += "    java -jar net-doc-jee.jar -r <SAVED_JSON_REPORT_FROM_DOCLET> -n MyAppName\n";
         usageFooter += "See http://jakartaee.net/tools\n";
         formatter.printHelp(syntax, usageHeader, getOptions(), usageFooter);
     }

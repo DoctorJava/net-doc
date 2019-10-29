@@ -16,8 +16,11 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 import groovy.json.JsonOutput;
+import groovyjarjarpicocli.CommandLine.ExitCode;
 
 import org.apache.commons.cli.CommandLine;
+import org.apache.commons.io.IOUtils;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,7 +35,7 @@ public class Main {
 	
 	private static Properties props = new Properties();		
 	
-	private enum SOURCE_TYPE { A, C, S }
+	private enum SOURCE_TYPE { A, C, S, J }
 
 //	  private static void zipDir(String zipFileName, String dir) throws Exception {
 //		    File dirObj = new File(dir);
@@ -69,6 +72,21 @@ public class Main {
 		logger.info(mainCmd);
 		
 		CommandLine cl = CliOptions.generateCommandLine(args);
+		if (cl.getOptionValue(CliOptions.REPORT_JSON) != null ) {
+			try ( InputStream is = new FileInputStream( cl.getOptionValue(CliOptions.REPORT_JSON) ); )
+			{	
+				String appName = cl.getOptionValue(CliOptions.APP_NAME);
+	            String jsonTxt = IOUtils.toString(is, "UTF-8");
+	            //System.out.println("Got JSON: " + jsonTxt);
+				outputJsonReport(jsonTxt, appName);   // This is a pretty print version.  The doclet output is not.
+				outputHtmlReport(jsonTxt,appName);
+			}catch (Exception e) {
+				e.printStackTrace();
+			}
+			return;
+		}
+	
+		
 		System.out.println();
 		String propFile = PROPS_FILE;
 		if (cl.getOptionValue(CliOptions.PROP_FILE) != null ) propFile = cl.getOptionValue(CliOptions.PROP_FILE);
@@ -100,15 +118,24 @@ public class Main {
 			
             if (cl.hasOption(CliOptions.INTERACTIVE)) {
                 handlePropInput(buf,CliOptions.SOURCE_TYPE, false);
-                handlePropInput(buf,CliOptions.SOURCE_DIR, true);
-                if ( props.getProperty(CliOptions.SOURCE_TYPE).toUpperCase().startsWith("A") ) {
+                
+                
+                if ( props.getProperty(CliOptions.SOURCE_TYPE).toUpperCase().startsWith("J") ) {
+   				    String appName = handleTextInput(buf,CliOptions.APP_NAME);
+                	String jsonTxt = handleTextInput(buf,CliOptions.REPORT_JSON);
+   				    outputJsonReport(jsonTxt, appName);   // This is a pretty print version.  The doclet output is not.
+    				outputHtmlReport(jsonTxt,appName);
+    				return;
+                } else if ( props.getProperty(CliOptions.SOURCE_TYPE).toUpperCase().startsWith("A") ) {
+                    handlePropInput(buf,CliOptions.SOURCE_DIR, true);
                 	handlePropInput(buf,CliOptions.SOURCE_FILE, false);
                 	String appName = props.getProperty(CliOptions.SOURCE_FILE);
                 	int lastDot = appName.lastIndexOf(".");
                 	if ( lastDot > 0 ) appName = appName.substring(0, lastDot);
                 	props.setProperty(CliOptions.APP_NAME, appName );
                 } else {
-                	String appName = props.getProperty(CliOptions.SOURCE_DIR);
+                    handlePropInput(buf,CliOptions.SOURCE_DIR, true);
+               	    String appName = props.getProperty(CliOptions.SOURCE_DIR);
                 	int lastSlash = appName.lastIndexOf("/");			// TODO: Handle Windows backslash too?
                    	if ( lastSlash == appName.length() - 1 ) appName = appName.substring(0,lastSlash);	// Trim last slash 
                    	lastSlash = appName.lastIndexOf("/");
@@ -233,7 +260,8 @@ public class Main {
 			logger.debug("Got JSON Output from ARCHIVE: ");
 			logger.debug(gotOutput);
 
-			outputReports(gotOutput, props.getProperty(CliOptions.APP_NAME));
+			outputJsonReport(gotOutput, props.getProperty(CliOptions.APP_NAME));
+			outputHtmlReport(gotOutput, props.getProperty(CliOptions.APP_NAME));
 
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
@@ -413,24 +441,27 @@ public class Main {
 //		
 //
 //	}	
-	private static void outputReports(String json, String info) throws IOException {
+	private static void outputJsonReport(String json, String info) throws IOException {
 		String OUT_JSON = "out/net-doc-jee-report_"+info+".json";
-		String OUT_HTML = "out/net-doc-jee-report_"+info+".html";
-		String OUT_MHTML = "out/net-doc-jee-report_"+info+".mhtml";
 		
 		try(BufferedWriter writer = new BufferedWriter(new FileWriter(OUT_JSON))){
 		    writer.write(JsonOutput.prettyPrint(json)); 
 		    System.out.println("Output JSON file: " + OUT_JSON);
 		}
+	}
+	private static void outputHtmlReport(String json, String info) throws IOException {
+		String OUT_HTML_SINGLE = "out/net-doc-jee-report_"+info+".html";
+		String OUT_HTML_ONLY = "out/net-doc-jee-report_"+info+"_only.html";
+
 			
-		try(BufferedWriter writer = new BufferedWriter(new FileWriter(OUT_HTML))){
-		    writer.write(Util.convertJsToHtml( Util.convertJsonToJs(json), false )); 
-		    System.out.println("Output HTML file: " + OUT_HTML);
-		}
-		
-		try(BufferedWriter writer = new BufferedWriter(new FileWriter(OUT_MHTML))){
+//		try(BufferedWriter writer = new BufferedWriter(new FileWriter(OUT_HTML_SINGLE))){
+//		    writer.write(Util.convertJsToHtml( Util.convertJsonToJs(json), false )); 
+//		    System.out.println("Output HTML file: " + OUT_HTML_ONLY);
+//		}
+//		
+		try(BufferedWriter writer = new BufferedWriter(new FileWriter(OUT_HTML_SINGLE))){
 		    writer.write(Util.convertJsToHtml( Util.convertJsonToJs(json), true )); 
-		    System.out.println("Output HTML file: " + OUT_MHTML);
+		    System.out.println("Output HTML file: " + OUT_HTML_SINGLE);
 		}		
 	}
 	private static void abort(String message) {
@@ -457,8 +488,12 @@ public class Main {
             if (hasTrailingSlash && (!entry.endsWith("/") && !entry.endsWith("\\")) )  props.setProperty( key, entry + "/" );
             else props.setProperty( key, entry);
         }      
-        
+    }
+    private static String handleTextInput(BufferedReader buf, String key) throws IOException {
+        System.out.print("Enter the " + key + " : ");
+        String entry = buf.readLine();
 
+        return entry;     
     }
 //    private static String getSourceFileEntry(BufferedReader buf) throws IOException {
 

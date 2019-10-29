@@ -289,7 +289,7 @@ public class Util {
 //	}
 	public static String convertJsToHtml(String js, boolean isSingleFile) {
 		String returnStr = "<!DOCTYPE html><html>";
-		final String head = ( isSingleFile ? getHTMLHead(js) : getMHTMLHead(js));
+		final String head = ( isSingleFile ? getSingleHTMLHead(js) : getHTMLHead(js));
 		final String body = "<body><h1><center>Net Doc Report</center></h1><div id=\"app\"></div> <script>document.getElementById(\"app\").innerHTML=`<h1>Servlets</h1><ul>${servlets.map(servletTemplate).join(\"\")}</ul><h1>Web Services</h1><ul>${services.map(serviceTemplate).join(\"\")}</ul><h1>Net Connections</h1><ul>${connections.map(connectionTemplate).join(\"\")}</ul><h1>Web Sockets</h1><ul>${sockets.map(socketTemplate).join(\"\")}</ul>`;</script></body>";
 		returnStr += head + body + "</html>";
 		return returnStr;
@@ -305,14 +305,14 @@ public class Util {
 		returnStr += "<script>" + js + "</script>";
 		return returnStr + "</head>";
 	}
-	private static String getMHTMLHead(String js) {
+	private static String getSingleHTMLHead(String js) {
 		String returnStr = "<head>";
 		returnStr += "<title>Net Doc</title> ";
-		returnStr += "<script type=\"text/javascript\" src=\"js/templates/servlet.js\"></script>";
-		returnStr += "<script type=\"text/javascript\" src=\"js/templates/service.js\"></script>";
-		returnStr += "<script type=\"text/javascript\" src=\"js/templates/connection.js\"></script> ";
-		returnStr += "<script type=\"text/javascript\" src=\"js/templates/socket.js\"></script>";
-		returnStr += "<link rel=\"stylesheet\" href=\"netdoc.css\">";
+		returnStr += "<script>function showServletPatterns(t){return t?`\\n\\t\\t<p><strong>URL Patterns: </strong>\\n\\t\\t\\t${t.map(t=>` ${t.path} `).join(\"\")}\\t\\t\\n\\t\\t</p>\\n\\t`:\"\"}function servletTemplate(t){if(t)return`\\n<li>\\n<h2>${t.className}</h2>\\n<p><strong>Package: </strong>${t.packageName}</p>\\n<p><strong>Methods: </strong>${t.methods}</p>\\n${showServletPatterns(t.urlPatterns)}\\n</li>\\n<hr/>\\n`}</script>";
+		returnStr += "<script>function showServiceMethods(t){return t?`\\n\\t\\t<p><strong>Methods: </strong>\\n\\t\\t\\t\\t${t.map(t=>` ${t.verb} ,`).join(\"\")}\\t\\t\\n\\t\\t</p>\\n\\t`:\"\"}function showServicePatterns(t){return t?`\\n\\t\\t<p><strong>URL Patterns: </strong>\\n\\t\\t\\t${t.map(t=>` ${t.path} `).join(\"\")}\\t\\t\\n\\t\\t</p>\\n\\t`:\"\"}function serviceTemplate(t){if(t)return`\\n\\t\\t\\t<li>\\n\\t\\t\\t\\t<h2>${t.className}</h2>\\n\\t\\t\\t\\t<p><strong>Package: </strong>${t.packageName}</p>\\n\\t\\t\\t\\t${showServiceMethods(t.methods)}\\n\\t\\t\\t\\t${showServicePatterns(t.urlPatterns)}\\n\\t\\t\\t</li>\\n\\t\\t\\t<hr/> \\n\\t\\t`}</script>";
+		returnStr += "<script>function showConnectionMethods(n){if(n)return`\\n<p><strong>Methods: </strong>\\n${n.map(n=>` ${n.verb} ), `).join(\"\")}\\t\\t\\n</p>\\n`}function showConnectionPatterns(n){if(n)return`\\n<p><strong>URL Patterns: </strong>\\n${n.map(n=>` ${n.path} `).join(\"\")}\\t\\t\\n</p>\\n`}function connectionTemplate(n){if(n)return`\\n<li>\\n<h2>${n.className}</h2>\\n<p><strong>Package: </strong>${n.packageName}</p>\\n<p><strong>Types:</strong>\\n${n.hasUrlConnection?\"UrlConnection, \":\"\"}\\n${n.hasSockets?\"Sockets, \":\"\"}\\n${n.hasServerSockets?\"Server Sockets, \":\"\"}\\n</p>\\n</li>\\n<hr/> \\n`}</script> ";
+		returnStr += "<script>function showSocketEndpoints(n){return n?`\\n<p><strong>Endpoints: </strong>\\n${n.map(n=>` ${n.path} `).join(\"\")}\\t\\t\\n</p>\\n`:\"\"}function socketTemplate(n){if(n)return`\\n<li>\\n<h2>${n.className}</h2>\\n<p><strong>Package: </strong>${n.packageName}</p>\\n${showSocketEndpoints(n.endpoints)}\\n</li>\\n<hr/> \\n`}</script>";
+		returnStr += "<style>body{font-family:sans-serif;background-color:#dedede;color:#333;padding:20px 0 28px 0;margin:0}li{padding:10px;overflow:auto}li:hover{background:#eee;cursor:pointer}.app-title{text-align:center;font-weight:400;font-size:2.6rem}.animal{max-width:650px;padding:20px;margin:30px auto;background-color:#fff;box-shadow:3px 3px 3px rgba(0,0,0,.1);overflow:hidden}.animal h4{margin:0 0 6px 0}.pet-name{font-size:2rem;font-weight:400;margin:0 0 1rem 0}.species{font-size:.9rem;color:#888;vertical-align:middle}.foods-list{margin:0;padding:0;position:relative;left:17px;font-size:.85rem;line-height:1.5}.footer{font-size:.7rem;color:#888;text-align:center;margin:0}</style>";
 		returnStr += "<script>" + js + "</script>";
 		return returnStr + "</head>";
 	}
