@@ -12,6 +12,8 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.Properties;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -243,6 +245,9 @@ public class Main {
 					decompiledPath = props.getProperty(CliOptions.SOURCE_DIR);
 					break;
 			}
+        	
+        	if ( isLinux ) classPath = classPath.replace(";", ":");     // Classpath separator is : on Linux
+        	else 		   classPath = classPath.replace(":", ";");     // Classpath separator is ; on Windows
 			
 			String runJavaDoc = String.format("javadoc -doclet net.jakartaee.netdoc.doclet.Main -docletpath lib/net-doc-jee-doclet.jar -subpackages %s -sourcepath \"%s\" -classpath \"%s\" ", subPackages, decompiledPath, classPath);
 			logger.debug("Running: " + runJavaDoc);
@@ -253,11 +258,15 @@ public class Main {
 			logger.debug("Found START_AFTER at: " + iJson);
 			if ( iJson > 0 ) {
 				gotOutput = gotOutput.substring(iJson + START_AFTER.length());
-				String TRIM_AFTER ="}]}]}";		// TODO:  This is a hack.  The Javadoc sometimes writes "# Warnings" after the closing json
-				int iTrim = gotOutput.indexOf(TRIM_AFTER);
-				gotOutput = gotOutput.substring(0,iTrim + TRIM_AFTER.length());				
+				//String TRIM_AFTER ="}]}]}";		// TODO:  This is a hack.  The Javadoc sometimes writes "# Warnings" after the closing json
+				//int iTrim = gotOutput.indexOf(TRIM_AFTER);
+				//gotOutput = gotOutput.substring(0,iTrim + TRIM_AFTER.length());				
+				int iTrim = findMatch(gotOutput, "\\d+ warning");
+				logger.debug("Trimming output at: " + iTrim);
+				gotOutput = gotOutput.substring(0,iTrim);				
+				logger.debug("Yields: " + gotOutput);
 			}
-			logger.debug("Got JSON Output from ARCHIVE: ");
+			logger.debug("Got JSON Output from sourceType: " + sourceType);
 			logger.debug(gotOutput);
 
 			outputJsonReport(gotOutput, props.getProperty(CliOptions.APP_NAME));
@@ -273,6 +282,15 @@ public class Main {
 		}
 		
 
+	}
+	
+	private static int findMatch(String text, String patternStr)
+	{
+        String patternString = "is";
+
+        Pattern pattern = Pattern.compile(patternStr);
+        Matcher matcher = pattern.matcher(text);
+        return matcher.start();
 	}
 	
 //	private static void runSource(boolean isLinux, boolean keepTemp) throws IOException {

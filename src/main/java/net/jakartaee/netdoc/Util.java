@@ -239,7 +239,7 @@ public class Util {
             System.out.println();       	
         }
        if ( isLinux )
-        	processBuilder.command("bash", "-c", cmd);
+        	processBuilder.command("sh", "-c", cmd);
         else
         	processBuilder.command("cmd.exe", "/c", cmd);			// Windows
 
@@ -247,8 +247,7 @@ public class Util {
 
             Process process = processBuilder.start();
 
-            BufferedReader reader =
-                    new BufferedReader(new InputStreamReader(process.getInputStream()));
+            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
 
             String line;
             while ((line = reader.readLine()) != null) {
@@ -257,7 +256,8 @@ public class Util {
             }
 
             int exitCode = process.waitFor();
-            logger.info("\nExited with error code : " + exitCode);
+            logger.debug("\nExited with error code : " + exitCode);
+            if ( isVerbose ) System.out.println("\nExited with error code : " + exitCode);
 
         } catch (IOException e) {
             e.printStackTrace();
