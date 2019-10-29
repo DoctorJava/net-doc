@@ -1,4 +1,4 @@
-package net.jakartaee.tools.netdoc;
+package net.jakartaee.netdoc;
 import org.apache.commons.cli.*;
 
 import java.io.PrintStream;

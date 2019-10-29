@@ -1,4 +1,4 @@
-package net.jakartaee.tools.netdoc;
+package net.jakartaee.netdoc;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -244,7 +244,7 @@ public class Main {
 					break;
 			}
 			
-			String runJavaDoc = String.format("javadoc -doclet net.jakartaee.tools.netdoc.JeeScannerDoclet -docletpath lib/net-doc-jee-doclet.jar -subpackages %s -sourcepath \"%s\" -classpath \"%s\" ", subPackages, decompiledPath, classPath);
+			String runJavaDoc = String.format("javadoc -doclet net.jakartaee.netdoc.doclet.Main -docletpath lib/net-doc-jee-doclet.jar -subpackages %s -sourcepath \"%s\" -classpath \"%s\" ", subPackages, decompiledPath, classPath);
 			logger.debug("Running: " + runJavaDoc);
 			String gotOutput = Util.runCommand(isLinux, runJavaDoc, isVerbose);
 			

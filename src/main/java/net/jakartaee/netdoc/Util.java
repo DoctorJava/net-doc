@@ -1,4 +1,4 @@
-package net.jakartaee.tools.netdoc;
+package net.jakartaee.netdoc;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
