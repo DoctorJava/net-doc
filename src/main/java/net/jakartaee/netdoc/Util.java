@@ -183,7 +183,7 @@ public class Util {
                 bos.write(bytesIn, 0, read);
             }   		
     	}catch ( Exception e) {
-    		logger.info("EEEEEEEEEEEEError extracting file: " + filePath + " with error: " + e.getMessage());
+    		logger.error("EEEEEEEEEEEEError extracting file: " + filePath + " with error: " + e.getMessage());
     	}
 
     }
@@ -227,7 +227,7 @@ public class Util {
 		return directoryToBeDeleted.delete();
 	}
 	
-	public static String runCommand(boolean isLinux, String cmd, boolean isVerbose) {
+	public static String runCommand(boolean isLinux, String cmd, boolean isVerbose) throws IOException {
 		StringBuffer output = new StringBuffer();
 		logger.info("Running command: " + cmd);
         ProcessBuilder processBuilder = new ProcessBuilder();
@@ -238,40 +238,69 @@ public class Util {
             System.out.println(cmd);
             System.out.println();       	
         }
-       if ( isLinux )
-        	processBuilder.command("sh", "-c", cmd);
-        else
-        	processBuilder.command("cmd.exe", "/c", cmd);			// Windows
+        //
+        // This code HUNG on Windows 
+        //
+//       if ( isLinux )
+//        	processBuilder.command("sh", "-c", cmd);
+//        else
+//        	processBuilder.command("cmd.exe", "/c", cmd);			// Windows
+//
+//        try {
+//
+//            Process process = processBuilder.start();
+//
+//            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+//
+//            String line;
+//            while ((line = reader.readLine()) != null) {
+//                System.out.println(line);
+//                output.append(line);
+//            }
+//
+//            int exitCode = process.waitFor();
+//            logger.debug("\nExited with error code : " + exitCode);
+//            if ( isVerbose ) System.out.println("\nExited with error code : " + exitCode);
+//
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        } catch (InterruptedException e) {
+//            e.printStackTrace();
+//        }
+		final File tmp = File.createTempFile("netdocOut", null);
+		try {
+			tmp.deleteOnExit();
 
-        try {
+			if (isLinux)
+				processBuilder.command("sh", "-c", cmd).redirectErrorStream(true).redirectOutput(tmp);
+			else
+				processBuilder.command("cmd.exe", "/c", cmd).redirectErrorStream(true).redirectOutput(tmp); // Windows
 
-            Process process = processBuilder.start();
+			final Process process = processBuilder.start();
+			final int exitCode = process.waitFor();
 
-            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+			BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(tmp)));
+			String line = "";
+			while ((line = reader.readLine()) != null) {
+				if (isVerbose) System.out.println(line);
+				output.append(line);
+			}
+			reader.close();
+			tmp.delete();
+			logger.debug("\nExited with error code : " + exitCode);
+			if (isVerbose) System.out.println("\nExited with error code : " + exitCode);
+		} catch (Exception e) {
+			logger.error( "EEEEEEEEEEEEError in runCommand: " + processBuilder.toString() + " with error: " + e.getMessage());
+		} finally {
+			tmp.delete();
+		}
+		if (isVerbose) System.out.println(HR_END);
 
-            String line;
-            while ((line = reader.readLine()) != null) {
-                System.out.println(line);
-                output.append(line);
-            }
-
-            int exitCode = process.waitFor();
-            logger.debug("\nExited with error code : " + exitCode);
-            if ( isVerbose ) System.out.println("\nExited with error code : " + exitCode);
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-        
-        if ( isVerbose ) System.out.println(HR_END);
-       
-        return output.toString();
+		return output.toString();
 
     }
 	
-	public static String convertJsonToJs(String json) {
+	public static String convertJsonToJs(String json) {			// TODO: This doesn't work with JSON that has <CR> because comma isn't replaced with semi-colon
 		String bracketStr = json.replace("\"connections\":", " const connections = ")
 								.replace("\"servlets\":", " const servlets = ")
 							    .replace("\"services\":", " const services = ")

@@ -14,11 +14,9 @@ import java.util.Arrays;
 import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
+
 
 import groovy.json.JsonOutput;
-import groovyjarjarpicocli.CommandLine.ExitCode;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.io.IOUtils;
@@ -30,6 +28,8 @@ public class Main {
     private static final Logger logger = LoggerFactory.getLogger( Main.class );  
 	private static final String PROPS_FILE = "net-doc.props";
 	private static final String SYNTAX = "java -jar net-doc-jee.jar ";
+	private static final String RUN_DECOMPILE = "java -jar lib/%s  %s --outputdir %s";				// Synax for CFR: java -jar lib/<CFR>.jar <FILES> --outputdir <OUTPUT_DIR>
+
 	private static final String FINISH_MSG = "Finished.";
 	private static final String TEMP_DIR = "netdoc";
 	//private static final String TEMP_DIR1 = "netdoc1";
@@ -224,7 +224,7 @@ public class Main {
 					String filePath = sourceDir + props.getProperty(CliOptions.SOURCE_FILE);
 					Util.unzip(filePath, tempDir);
 					
-					String runDecompileA = String.format("java -jar lib/%s -cp %s --outputdir %s", cfrJar, filePath, decompiledPath);
+					String runDecompileA = String.format(RUN_DECOMPILE, cfrJar, filePath, decompiledPath);
 					logger.debug("Running: " + runDecompileA);
 					Util.runCommand(isLinux, runDecompileA, isVerbose);
 					break;
@@ -235,7 +235,7 @@ public class Main {
 					logger.debug("Running: " + runJar);
 					Util.runCommand(isLinux, runJar, isVerbose);
 	
-					String runDecompileC = String.format("java -jar lib/%s -cp %s --outputdir %s", cfrJar, zipPath, decompiledPath);
+					String runDecompileC = String.format(RUN_DECOMPILE, cfrJar, zipPath, decompiledPath);
 					logger.debug("Running: " + runDecompileC);
 					Util.runCommand(isLinux, runDecompileC, isVerbose);
 
@@ -262,8 +262,10 @@ public class Main {
 				//int iTrim = gotOutput.indexOf(TRIM_AFTER);
 				//gotOutput = gotOutput.substring(0,iTrim + TRIM_AFTER.length());				
 				int iTrim = findMatch(gotOutput, "\\d+ warning");
-				logger.debug("Trimming output at: " + iTrim);
-				gotOutput = gotOutput.substring(0,iTrim);				
+				if ( iTrim > 0 ) {
+					logger.debug("Trimming output at: " + iTrim);
+					gotOutput = gotOutput.substring(0,iTrim);				
+				}
 				logger.debug("Yields: " + gotOutput);
 			}
 			logger.debug("Got JSON Output from sourceType: " + sourceType);
@@ -289,8 +291,9 @@ public class Main {
         String patternString = "is";
 
         Pattern pattern = Pattern.compile(patternStr);
-        Matcher matcher = pattern.matcher(text);
-        return matcher.start();
+        Matcher m = pattern.matcher(text);
+        if (m.matches()) return m.start();
+        else return -1;
 	}
 	
 //	private static void runSource(boolean isLinux, boolean keepTemp) throws IOException {
